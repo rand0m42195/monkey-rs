@@ -1,10 +1,12 @@
-# RMonkey Language Interpreter
+# Monkey Language Interpreter
 
-A Rust implementation of the Monkey programming language interpreter, following the "Writing An Interpreter In Go" book by Thorsten Ball.
+A **Rust** implementation of the Monkey programming language interpreter, following the "Writing An Interpreter In Go" book by Thorsten Ball.
 
 ## Overview
 
-RMonkey is a toy programming language interpreter written in Rust. It features a lexer, parser, and evaluator that can process Monkey language code. The project serves as an educational exercise to understand how programming language interpreters work.
+Monkey is a toy programming language interpreter written in Rust. It features a lexer, parser, and evaluator that can process Monkey language code. The project serves as an educational exercise to understand how programming language interpreters work.
+
+There is a **Go** implementation of the Monkey language interpreter [here](https://github.com/rand0m42195/monkey-go).
 
 ## Features
 
