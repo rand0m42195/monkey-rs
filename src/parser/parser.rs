@@ -1,7 +1,4 @@
-use crate::{
-    ast::{self, ast::BlockStatement},
-    lexer, token,
-};
+use crate::{ast, lexer, token};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -125,7 +122,6 @@ impl Parser {
     }
 
     fn parse_let_statement(&mut self) -> Option<ast::LetStatement> {
-        let tok = self.cur_token.clone();
         if !self.expect_peek(token::TokenType::IDENT) {
             return None;
         }
@@ -160,7 +156,6 @@ impl Parser {
     }
 
     fn parse_return_statement(&mut self) -> Option<ast::ReturnStatement> {
-        let tok = self.cur_token.clone();
         self.next_token();
 
         while !self.cur_token_is(token::TokenType::SEMICOLON) {

@@ -1,6 +1,6 @@
-use std::fmt::{Display, write};
+use std::fmt::Display;
 
-use crate::{parser, token};
+use crate::token;
 
 // pub trait Node {
 //     fn token_literal(&self) -> String;
