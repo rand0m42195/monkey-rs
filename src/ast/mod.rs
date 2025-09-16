@@ -1,6 +1,7 @@
 pub mod ast;
 
 pub use ast::{
-    Expression, ExpressionNode, Identifier, IntegerLiteral, LetStatement, Node, Program,
-    ReturnStatement, Statement, StatementNode,
+    BlockStatement, Boolean, CallExpression, ExpressionNode, ExpressionStatement, FunctionLiteral,
+    Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement, PrefixExpression,
+    Program, ReturnStatement, StatementNode,
 };
