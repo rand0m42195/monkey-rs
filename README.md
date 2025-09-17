@@ -12,15 +12,39 @@ There is a **Go** implementation of the Monkey language interpreter [here](https
 
 ### ✅ Implemented
 - **Lexer**: Tokenizes Monkey language source code into tokens
+- **Parser**: Complete Pratt parser with precedence handling
+- **AST Generation**: Full Abstract Syntax Tree construction
 - **REPL**: Interactive Read-Eval-Print Loop with customizable I/O
-- **Token Types**: Support for identifiers, integers, operators, keywords, and delimiters
-- **Comprehensive Testing**: Unit tests for lexer functionality
+- **Comprehensive Testing**: Unit tests for lexer and parser functionality
 
-### Supported Token Types
-- **Identifiers**: `let`, `fn`, `if`, `else`, `return`, `true`, `false`
-- **Literals**: Integer numbers, identifiers
-- **Operators**: `+`, `-`, `*`, `/`, `==`, `!=`, `<`, `>`, `!`
-- **Delimiters**: `(`, `)`, `{`, `}`, `[`, `]`, `;`, `,`, `:`
+### Supported Language Features
+- **Expressions**:
+  - Integer literals (`123`)
+  - Boolean literals (`true`, `false`)
+  - Identifiers (`x`, `myVar`)
+  - Prefix expressions (`-5`, `!true`)
+  - Infix expressions (`5 + 3`, `x == y`, `a < b`)
+  - Grouped expressions (`(1 + 2) * 3`)
+  - Function literals (`fn(x, y) { x + y }`)
+  - Function calls (`add(1, 2)`)
+  - If expressions (`if (x < y) { x } else { y }`)
+
+- **Statements**:
+  - Let statements (`let x = 5;`)
+  - Return statements (`return 42;`)
+  - Expression statements (`x + y;`)
+  - Block statements (`{ let x = 1; x + 2; }`)
+
+- **Operators**:
+  - Arithmetic: `+`, `-`, `*`, `/`
+  - Comparison: `==`, `!=`, `<`, `>`
+  - Logical: `!`
+  - Assignment: `=`
+
+- **Control Flow**:
+  - If/else expressions with proper precedence
+  - Function definitions and calls
+  - Block scoping
 
 ## Project Structure
 
@@ -31,6 +55,12 @@ src/
 │   └── mod.rs       # Module exports
 ├── token/           # Token definitions
 │   ├── token.rs     # Token and TokenType definitions
+│   └── mod.rs       # Module exports
+├── parser/          # Syntax analysis
+│   ├── parser.rs    # Pratt parser implementation
+│   └── mod.rs       # Module exports
+├── ast/             # Abstract Syntax Tree
+│   ├── ast.rs       # AST node definitions
 │   └── mod.rs       # Module exports
 ├── repl/            # Read-Eval-Print Loop
 │   ├── repl.rs      # REPL implementation
@@ -69,26 +99,37 @@ $ cargo run
 Hello! This is the Monkey programming language!
 Feel free to type in commands
 >> let x = 5;
-Token { typ: LET, literal: "let" }
-Token { typ: IDENT, literal: "x" }
-Token { typ: ASSIGN, literal: "=" }
-Token { typ: INT, literal: "5" }
-Token { typ: SEMICOLON, literal: ";" }
-Token { typ: EOF, literal: "" }
+let x = 5;
+>> let y = 10;
+let y = 10;
+>> x + y * 2;
+(x + (y * 2))
+>> fn add(a, b) { a + b; }
+fn(a, b) {
+(a + b)
+}
+>> add(5, 3);
+add(5, 3)
+>> if (x > y) { x } else { y };
+if ((x > y)) {
+x
+} else {
+y
+}
 ```
 
 ## Development Roadmap
 
-### Phase 1: Core Language Features
-- [ ] **Parser**: Implement recursive descent parser for AST generation
-  - [ ] Expression parsing (arithmetic, comparison, logical)
-  - [ ] Statement parsing (let, return, expression statements)
-  - [ ] Block statement parsing
-  - [ ] Function declaration parsing
-- [ ] **AST Nodes**: Define Abstract Syntax Tree node types
-  - [ ] Expression nodes (identifiers, literals, infix, prefix, call)
-  - [ ] Statement nodes (let, return, expression, block)
-  - [ ] Program root node
+### Phase 1: Core Language Features ✅ COMPLETED
+- [x] **Parser**: Implement Pratt parser for AST generation
+  - [x] Expression parsing (arithmetic, comparison, logical)
+  - [x] Statement parsing (let, return, expression statements)
+  - [x] Block statement parsing
+  - [x] Function declaration parsing
+- [x] **AST Nodes**: Define Abstract Syntax Tree node types
+  - [x] Expression nodes (identifiers, literals, infix, prefix, call, if, function)
+  - [x] Statement nodes (let, return, expression, block)
+  - [x] Program root node
 
 ### Phase 2: Evaluation Engine
 - [ ] **Evaluator**: Implement expression and statement evaluation
@@ -156,6 +197,7 @@ cargo test -- --nocapture
 
 # Run specific test module
 cargo test lexer::tests
+cargo test parser::tests
 ```
 
 ## Contributing
