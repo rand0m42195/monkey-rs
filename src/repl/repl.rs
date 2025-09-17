@@ -1,5 +1,4 @@
-use crate::lexer::Lexer;
-use crate::token::TokenType;
+use crate::{lexer::Lexer, parser::Parser};
 use std::io::{BufRead, Write};
 
 pub fn start<R: BufRead, W: Write>(reader: &mut R, writer: &mut W) {
@@ -20,16 +19,19 @@ pub fn start<R: BufRead, W: Write>(reader: &mut R, writer: &mut W) {
                 }
 
                 // Create lexer and tokenize the input
-                let mut lexer = Lexer::new(input);
-
-                // Print all tokens
-                loop {
-                    let token = lexer.next_token();
-                    writeln!(writer, "{:?}", token).unwrap();
-
-                    if token.typ() == TokenType::EOF {
-                        break;
+                let lexer = Lexer::new(input);
+                let mut parser = Parser::new(lexer);
+                let program = parser.parse_program();
+                if parser.has_errors() {
+                    let error_msgs = parser.parse_error_msg();
+                    for err_msg in error_msgs {
+                        eprintln!("{}", err_msg);
                     }
+                    continue;
+                }
+
+                for stmt in program.statements {
+                    println!("{}", stmt);
                 }
             }
             Err(error) => {

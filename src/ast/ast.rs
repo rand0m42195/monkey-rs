@@ -2,22 +2,6 @@ use std::fmt::Display;
 
 use crate::token;
 
-// pub trait Node {
-//     fn token_literal(&self) -> String;
-// }
-
-// pub trait Statement: Node {
-//     fn statement_node(&self) {
-//         // Default implementation - can be overridden
-//     }
-// }
-
-// pub trait Expression: Node {
-//     fn expression_node(&self) {
-//         // Default implementation - can be overridden
-//     }
-// }
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StatementNode {
     Let(LetStatement),
@@ -229,7 +213,7 @@ impl Display for FunctionLiteral {
             .map(|p| p.to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        write!(f, "fn({}) {{\n{}\n}}", params, self.body)
+        write!(f, "fn({}) {{\n{}}}", params, self.body)
     }
 }
 

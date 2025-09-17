@@ -89,6 +89,14 @@ impl Parser {
         program
     }
 
+    pub fn has_errors(&self) -> bool {
+        !self.errors.is_empty()
+    }
+
+    pub fn parse_error_msg(&self) -> Vec<String> {
+        self.errors.clone()
+    }
+
     fn parse_statement(&mut self) -> Option<ast::StatementNode> {
         match self.cur_token.typ() {
             token::TokenType::LET => {
