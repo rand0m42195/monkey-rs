@@ -144,15 +144,6 @@ impl Parser {
         // now self.cur_token is '=', skip it.
         self.next_token();
 
-        // let exp = self.parse_expression();
-        // if exp.is_none() {
-        //     return None;
-        // }
-
-        // if !self.expect_peek(token::TokenType::SEMICOLON) {
-        //     return None;
-        // }
-
         while !self.cur_token_is(token::TokenType::SEMICOLON) {
             self.next_token();
         }

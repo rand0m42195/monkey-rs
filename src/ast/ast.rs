@@ -231,6 +231,6 @@ impl Display for CallExpression {
             .map(|a| a.to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        write!(f, "{} ({})", self.function, args)
+        write!(f, "{}({})", self.function, args)
     }
 }

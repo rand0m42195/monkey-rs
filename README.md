@@ -104,7 +104,7 @@ let x = 5;
 let y = 10;
 >> x + y * 2;
 (x + (y * 2))
->> fn add(a, b) { a + b; }
+>> fn(a, b) { a + b; }
 fn(a, b) {
 (a + b)
 }
