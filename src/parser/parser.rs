@@ -50,6 +50,7 @@ impl Parser {
 
         parser.register_prefix_fn(token::TokenType::IDENT, Self::parse_identifier);
         parser.register_prefix_fn(token::TokenType::INT, Self::parse_integer);
+        parser.register_prefix_fn(token::TokenType::STRING, Self::parse_string_literal);
         parser.register_prefix_fn(token::TokenType::MINUS, Self::parse_prefix_expression);
         parser.register_prefix_fn(token::TokenType::BANG, Self::parse_prefix_expression);
         parser.register_prefix_fn(token::TokenType::TRUE, Self::parse_boolean);
@@ -167,7 +168,7 @@ impl Parser {
 
     fn parse_identifier(&mut self) -> Result<ast::Expression, MonkeyError> {
         if self.cur_token_is(token::TokenType::IDENT) {
-            Ok(ast::Expression::Identifier(ast::Identifier {
+            Ok(ast::Expression::Ident(ast::Identifier {
                 value: self.cur_token.literal().clone(),
             }))
         } else {
@@ -197,10 +198,20 @@ impl Parser {
             });
         }
 
-        Ok(ast::Expression::Integer(ast::IntegerLiteral {
-            token: self.cur_token.clone(),
-            value: n.unwrap(),
-        }))
+        Ok(ast::Expression::Int(ast::Integer::new(n.unwrap())))
+    }
+
+    fn parse_string_literal(&mut self) -> Result<ast::Expression, MonkeyError> {
+        if !self.cur_token_is(token::TokenType::STRING) {
+            return Err(MonkeyError::TypeError {
+                expected: token::TokenType::STRING.to_string(),
+                actual: self.cur_token.typ().to_string(),
+            });
+        }
+
+        Ok(ast::Expression::String(ast::MString::new(
+            &self.cur_token.literal(),
+        )))
     }
 
     fn parse_boolean(&mut self) -> Result<ast::Expression, MonkeyError> {
@@ -441,10 +452,7 @@ impl Parser {
 mod tests {
 
     use super::*;
-    use crate::{
-        ast::{self, Program},
-        lexer, token,
-    };
+    use crate::ast::{self, Program};
 
     #[test]
     fn test_parse_program() {
@@ -509,7 +517,7 @@ mod tests {
                 name: ast::Identifier {
                     value: "my_var".to_string(),
                 },
-                value: ast::Expression::Identifier(ast::Identifier {
+                value: ast::Expression::Ident(ast::Identifier {
                     value: "another_var".to_string(),
                 }),
             })],
@@ -528,7 +536,7 @@ mod tests {
         assert_eq!(
             program.statements[0],
             ast::Statement::Expression(ast::ExpressionStatement {
-                expression: ast::Expression::Identifier(ast::Identifier {
+                expression: ast::Expression::Ident(ast::Identifier {
                     value: "foobar".to_string(),
                 })
             })
@@ -545,10 +553,7 @@ mod tests {
         assert_eq!(
             program.statements[0],
             ast::Statement::Expression(ast::ExpressionStatement {
-                expression: ast::Expression::Integer(ast::IntegerLiteral {
-                    token: token::Token::new(token::TokenType::INT, "123".to_string()),
-                    value: 123,
-                })
+                expression: ast::Expression::Int(ast::Integer::new(123))
             })
         )
     }
@@ -570,10 +575,7 @@ mod tests {
                 ast::Statement::Expression(ast::ExpressionStatement {
                     expression: ast::Expression::Prefix(ast::PrefixExpression {
                         operator,
-                        right: Box::new(ast::Expression::Integer(ast::IntegerLiteral {
-                            token: token::Token::new(token::TokenType::INT, val.to_string()),
-                            value: val,
-                        }))
+                        right: Box::new(ast::Expression::Int(ast::Integer::new(val)))
                     })
                 })
             )
@@ -624,15 +626,9 @@ mod tests {
                 program.statements[0],
                 ast::Statement::Expression(ast::ExpressionStatement {
                     expression: ast::Expression::Infix(ast::InfixExpression {
-                        left: Box::new(ast::Expression::Integer(ast::IntegerLiteral {
-                            token: token::Token::new(token::TokenType::INT, left_val.to_string()),
-                            value: left_val as i64,
-                        })),
+                        left: Box::new(ast::Expression::Int(ast::Integer::new(left_val as i64))),
                         operator: operator.to_string(),
-                        right: Box::new(ast::Expression::Integer(ast::IntegerLiteral {
-                            token: token::Token::new(token::TokenType::INT, right_val.to_string()),
-                            value: right_val as i64,
-                        }))
+                        right: Box::new(ast::Expression::Int(ast::Integer::new(right_val as i64)))
                     })
                 })
             );
@@ -703,17 +699,17 @@ mod tests {
         let expected = ast::Statement::Expression(ast::ExpressionStatement {
             expression: ast::Expression::If(ast::IfExpression {
                 condition: Box::new(ast::Expression::Infix(ast::InfixExpression {
-                    left: Box::new(ast::Expression::Identifier(ast::Identifier {
+                    left: Box::new(ast::Expression::Ident(ast::Identifier {
                         value: "x".to_string(),
                     })),
                     operator: "<".to_string(),
-                    right: Box::new(ast::Expression::Identifier(ast::Identifier {
+                    right: Box::new(ast::Expression::Ident(ast::Identifier {
                         value: "y".to_string(),
                     })),
                 })),
                 consequence: ast::BlockStatement {
                     statements: vec![ast::Statement::Expression(ast::ExpressionStatement {
-                        expression: ast::Expression::Identifier(ast::Identifier {
+                        expression: ast::Expression::Ident(ast::Identifier {
                             value: "x".to_string(),
                         }),
                     })],

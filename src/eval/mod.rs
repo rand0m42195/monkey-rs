@@ -77,8 +77,9 @@ fn eval_expression(
 ) -> Result<object::Object, MonkeyError> {
     match exp {
         ast::Expression::Empty() => Ok(object::Object::Null),
-        ast::Expression::Identifier(ident) => eval_identifier(ident, env),
-        ast::Expression::Integer(il) => eval_integer_literal(il),
+        ast::Expression::Ident(ident) => eval_identifier(ident, env),
+        ast::Expression::Int(il) => eval_integer_literal(il),
+        ast::Expression::String(s) => eval_string_literal(s),
         ast::Expression::Bool(boolean) => eval_boolean(boolean),
         ast::Expression::Prefix(prefix) => eval_prefix_expression(prefix, env.clone()),
         ast::Expression::Infix(infix) => eval_infix_expression(infix, env.clone()),
@@ -101,8 +102,12 @@ fn eval_identifier(
     }
 }
 
-fn eval_integer_literal(il: ast::IntegerLiteral) -> Result<object::Object, MonkeyError> {
-    Ok(object::Object::Integer(il.value))
+fn eval_integer_literal(il: ast::Integer) -> Result<object::Object, MonkeyError> {
+    Ok(object::Object::Integer(il.value()))
+}
+
+fn eval_string_literal(s: ast::MString) -> Result<object::Object, MonkeyError> {
+    Ok(object::Object::String(s.value()))
 }
 
 fn eval_boolean(b: ast::Boolean) -> Result<object::Object, MonkeyError> {
@@ -159,6 +164,15 @@ fn eval_infix_expression(
             "!=" => Ok(object::Object::Boolean(l != r)),
             op => Err(MonkeyError::RuntimeError {
                 message: format!("Boolean object does not support infix operator '{}'", op),
+            }),
+        },
+
+        (object::Object::String(l), object::Object::String(r)) => match operator.as_str() {
+            "+" => Ok(object::Object::String(l + &r)),
+            "==" => Ok(object::Object::Boolean(l == r)),
+            "!=" => Ok(object::Object::Boolean(l != r)),
+            op => Err(MonkeyError::RuntimeError {
+                message: format!("String object does not support infix operator '{}'", op),
             }),
         },
 
@@ -301,6 +315,37 @@ mod tests {
     }
 
     #[test]
+    fn test_eval_string_literal() {
+        let tests = vec![(r#""hello""#, "hello")];
+
+        for (input, expected) in tests {
+            let obj = test_eval_helper(input);
+            test_string_object(obj, expected);
+        }
+    }
+
+    #[test]
+    fn test_string_concatenation() {
+        let input = r#""Hello" + " " + "World!""#;
+        let expected = "Hello World!";
+        let obj = test_eval_helper(input);
+        test_string_object(obj, expected);
+    }
+
+    #[test]
+    fn test_string_compare() {
+        let tests = vec![
+            (r#""Hello" == "Hello""#, true),
+            (r#""Hello" == "hello""#, false),
+        ];
+        
+        for (input, expected) in tests {
+            let obj = test_eval_helper(input);
+            test_boolean_object(obj, expected);
+        }
+    }
+
+    #[test]
     fn test_eval_boolean() {
         let tests = vec![
             ("true", true),
@@ -425,13 +470,13 @@ mod tests {
                             // operator
                             assert_eq!(infix.operator, "+");
                             // left identifier == a
-                            if let ast::Expression::Identifier(id) = &*infix.left {
+                            if let ast::Expression::Ident(id) = &*infix.left {
                                 assert_eq!(id.value, "a");
                             } else {
                                 panic!("left of infix is not Identifier 'a'");
                             }
                             // right identifier == b
-                            if let ast::Expression::Identifier(id) = &*infix.right {
+                            if let ast::Expression::Ident(id) = &*infix.right {
                                 assert_eq!(id.value, "b");
                             } else {
                                 panic!("right of infix is not Identifier 'b'");
@@ -479,7 +524,15 @@ mod tests {
         if let object::Object::Integer(n) = obj {
             assert_eq!(n, expected);
         } else {
-            panic!("expect Integer object!");
+            panic!("expected Integer object!");
+        }
+    }
+
+    fn test_string_object(obj: object::Object, expected: &str) {
+        if let object::Object::String(s) = obj {
+            assert_eq!(s, expected);
+        } else {
+            panic!("expected String object")
         }
     }
 
@@ -487,7 +540,7 @@ mod tests {
         if let object::Object::Boolean(n) = obj {
             assert_eq!(n, expected);
         } else {
-            panic!("expect Boolean object!");
+            panic!("expected Boolean object!");
         }
     }
 }

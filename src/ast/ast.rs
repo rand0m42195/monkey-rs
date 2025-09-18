@@ -1,7 +1,5 @@
 use std::fmt::Display;
 
-use crate::token;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Statement {
     Let(LetStatement),
@@ -29,8 +27,9 @@ impl Display for Statement {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
     Empty(),
-    Identifier(Identifier),
-    Integer(IntegerLiteral),
+    Ident(Identifier),
+    Int(Integer),
+    String(MString),
     Bool(Boolean),
     Prefix(PrefixExpression),
     Infix(InfixExpression),
@@ -43,8 +42,9 @@ impl Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expression::Empty() => write!(f, "EMPTY"),
-            Expression::Identifier(e) => write!(f, "{}", e),
-            Expression::Integer(e) => write!(f, "{}", e),
+            Expression::Ident(e) => write!(f, "{}", e),
+            Expression::Int(e) => write!(f, "{}", e),
+            Expression::String(e) => write!(f, "{}", e),
             Expression::Bool(e) => write!(f, "{}", e),
             Expression::Prefix(e) => write!(f, "{}", e),
             Expression::Infix(e) => write!(f, "{}", e),
@@ -117,14 +117,40 @@ impl Display for Identifier {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IntegerLiteral {
-    pub token: token::Token,
-    pub value: i64,
+pub struct Integer(i64);
+
+impl Display for Integer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
-impl Display for IntegerLiteral {
+impl Integer {
+    pub fn new(n: i64) -> Self {
+        Integer(n)
+    }
+
+    pub fn value(&self) -> i64 {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MString(String);
+
+impl Display for MString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "{}", self.0)
+    }
+}
+
+impl MString {
+    pub fn new(s: &str) -> MString {
+        Self(s.to_string())
+    }
+
+    pub fn value(&self) -> String {
+        self.0.clone()
     }
 }
 

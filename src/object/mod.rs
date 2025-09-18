@@ -9,6 +9,7 @@ use crate::ast;
 pub enum Object {
     Null,
     Integer(i64),
+    String(String),
     Boolean(bool),
     Return(Box<Object>),
     Function(
@@ -23,6 +24,7 @@ impl Display for Object {
         match self {
             Object::Null => write!(f, "null"),
             Object::Integer(n) => write!(f, "{}", n),
+            Object::String(s) => write!(f, "{}", s),
             Object::Boolean(b) => write!(f, "{}", b),
             Object::Return(r) => write!(f, "{}", r),
             Object::Function(params, block, _env) => {
@@ -41,6 +43,7 @@ impl Display for Object {
 pub enum ObjectType {
     Null,
     Integer,
+    String,
     Boolean,
     Return,
     Function,
@@ -51,6 +54,7 @@ impl Object {
         match self {
             Object::Null => ObjectType::Null,
             Object::Integer(_) => ObjectType::Integer,
+            Object::String(_) => ObjectType::String,
             Object::Boolean(_) => ObjectType::Boolean,
             Object::Return(_) => ObjectType::Return,
             Self::Function(_, _, _) => ObjectType::Function,
@@ -67,6 +71,7 @@ impl Display for ObjectType {
         match self {
             ObjectType::Null => write!(f, "Null"),
             ObjectType::Integer => write!(f, "Integer"),
+            ObjectType::String => write!(f, "String"),
             ObjectType::Boolean => write!(f, "Boolean"),
             ObjectType::Return => write!(f, "Return"),
             ObjectType::Function => write!(f, "Function"),

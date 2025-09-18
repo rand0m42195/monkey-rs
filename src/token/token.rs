@@ -5,8 +5,9 @@ pub enum TokenType {
     ILLEGAL,
     EOF,
 
-    IDENT,
-    INT,
+    IDENT, // identifier, eg: 'x', 'foo'
+    INT,   // int64
+    STRING,
 
     ASSIGN,   // '='
     PLUS,     // '+'
