@@ -1,8 +1,8 @@
+pub mod ast;
+pub mod errors;
+pub mod eval;
 pub mod lexer;
+pub mod object;
+pub mod parser;
 pub mod repl;
 pub mod token;
-pub mod ast;
-pub mod parser;
-pub mod object;
-pub mod eval;
-pub mod errors;

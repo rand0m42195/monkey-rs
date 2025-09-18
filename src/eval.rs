@@ -1,4 +1,4 @@
-use crate::{ast::ast, errors::MonkeyError, object};
+use crate::{ast, errors::MonkeyError, object};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -338,7 +338,7 @@ mod tests {
             (r#""Hello" == "Hello""#, true),
             (r#""Hello" == "hello""#, false),
         ];
-        
+
         for (input, expected) in tests {
             let obj = test_eval_helper(input);
             test_boolean_object(obj, expected);
