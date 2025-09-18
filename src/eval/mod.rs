@@ -1,13 +1,15 @@
 use crate::{ast::ast, errors::MonkeyError, object};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub fn eval(
     program: ast::Program,
-    env: &mut object::Environment,
+    env: Rc<RefCell<object::Environment>>,
 ) -> Result<object::Object, MonkeyError> {
     let mut obj = object::Object::Null;
 
     for stmt in program.statements {
-        obj = eval_statement(stmt, env)?;
+        obj = eval_statement(stmt, env.clone())?;
 
         if let object::Object::Return(ret_obj) = obj {
             return Ok(*ret_obj);
@@ -19,12 +21,12 @@ pub fn eval(
 
 fn eval_block_statement(
     block: ast::BlockStatement,
-    env: &mut object::Environment,
+    env: Rc<RefCell<object::Environment>>,
 ) -> Result<object::Object, MonkeyError> {
     let mut obj = object::Object::Null;
 
     for stmt in block.statements {
-        obj = eval_statement(stmt, env)?;
+        obj = eval_statement(stmt, env.clone())?;
         if obj.is_type(object::ObjectType::Return) {
             break;
         }
@@ -35,7 +37,7 @@ fn eval_block_statement(
 
 fn eval_statement(
     stmt: ast::Statement,
-    env: &mut object::Environment,
+    env: Rc<RefCell<object::Environment>>,
 ) -> Result<object::Object, MonkeyError> {
     match stmt {
         ast::Statement::Let(let_stmt) => eval_let_statment(let_stmt, env),
@@ -46,51 +48,51 @@ fn eval_statement(
 
 fn eval_let_statment(
     stmt: ast::LetStatement,
-    env: &mut object::Environment,
+    env: Rc<RefCell<object::Environment>>,
 ) -> Result<object::Object, MonkeyError> {
-    let obj: object::Object = eval_expression(stmt.value, env)?;
-    env.set(&stmt.name, &obj);
+    let obj = eval_expression(stmt.value, env.clone())?;
+    env.borrow_mut().set(&stmt.name, &obj);
 
     Ok(object::Object::Null)
 }
 
 fn eval_return_statement(
     stmt: ast::ReturnStatement,
-    env: &mut object::Environment,
+    env: Rc<RefCell<object::Environment>>,
 ) -> Result<object::Object, MonkeyError> {
-    let obj = eval_expression(stmt.expression, env)?;
+    let obj = eval_expression(stmt.expression, env.clone())?;
     Ok(object::Object::Return(Box::new(obj)))
 }
 
 fn eval_expression_statement(
     stmt: ast::ExpressionStatement,
-    env: &mut object::Environment,
+    env: Rc<RefCell<object::Environment>>,
 ) -> Result<object::Object, MonkeyError> {
-    eval_expression(stmt.expression, env)
+    eval_expression(stmt.expression, env.clone())
 }
 
 fn eval_expression(
     exp: ast::Expression,
-    env: &mut object::Environment,
+    env: Rc<RefCell<object::Environment>>,
 ) -> Result<object::Object, MonkeyError> {
     match exp {
         ast::Expression::Empty() => Ok(object::Object::Null),
         ast::Expression::Identifier(ident) => eval_identifier(ident, env),
         ast::Expression::Integer(il) => eval_integer_literal(il),
         ast::Expression::Bool(boolean) => eval_boolean(boolean),
-        ast::Expression::Prefix(prefix) => eval_prefix_expression(prefix, env),
-        ast::Expression::Infix(infix) => eval_infix_expression(infix, env),
-        ast::Expression::If(if_exp) => eval_if_expression(if_exp, env),
-        ast::Expression::Fucntion(function) => eval_function_literal(function, env),
-        ast::Expression::Call(call) => eval_call_expression(call, env),
+        ast::Expression::Prefix(prefix) => eval_prefix_expression(prefix, env.clone()),
+        ast::Expression::Infix(infix) => eval_infix_expression(infix, env.clone()),
+        ast::Expression::If(if_exp) => eval_if_expression(if_exp, env.clone()),
+        ast::Expression::Fucntion(function) => eval_function_literal(function, env.clone()),
+        ast::Expression::Call(call) => eval_call_expression(call, env.clone()),
     }
 }
 
 fn eval_identifier(
     ident: ast::Identifier,
-    env: &object::Environment,
+    env: Rc<RefCell<object::Environment>>,
 ) -> Result<object::Object, MonkeyError> {
-    if let Some(obj) = env.get(&ident) {
+    if let Some(obj) = env.borrow().get(&ident) {
         Ok(obj)
     } else {
         Err(MonkeyError::RuntimeError {
@@ -109,33 +111,33 @@ fn eval_boolean(b: ast::Boolean) -> Result<object::Object, MonkeyError> {
 
 fn eval_prefix_expression(
     prefix: ast::PrefixExpression,
-    env: &mut object::Environment,
+    env: Rc<RefCell<object::Environment>>,
 ) -> Result<object::Object, MonkeyError> {
     match prefix.operator.as_str() {
         "!" => {
-            let obj = eval_expression(*prefix.right, env)?;
+            let obj = eval_expression(*prefix.right, env.clone())?;
             Ok(eval_bang_operator_expression(obj))
         }
         "-" => {
-            let obj = eval_expression(*prefix.right, env)?;
-            Ok(eval_minus_operator_expression(obj))
+            let obj = eval_expression(*prefix.right, env.clone())?;
+            eval_minus_operator_expression(obj)
         }
-        op => Err(MonkeyError::SyntaxError {
-            message: format!("unsupported perfix operator {}", op),
+        op => Err(MonkeyError::RuntimeError {
+            message: format!("unsupported prefix operator {}", op),
         }),
     }
 }
 
 fn eval_infix_expression(
     infix: ast::InfixExpression,
-    env: &mut object::Environment,
+    env: Rc<RefCell<object::Environment>>,
 ) -> Result<object::Object, MonkeyError> {
     let left_exp = *infix.left;
     let right_exp = *infix.right;
     let operator = infix.operator;
 
-    let lobj = eval_expression(left_exp, env)?;
-    let robj = eval_expression(right_exp, env)?;
+    let lobj = eval_expression(left_exp, env.clone())?;
+    let robj = eval_expression(right_exp, env.clone())?;
 
     match (lobj, robj) {
         (object::Object::Integer(l), object::Object::Integer(r)) => match operator.as_str() {
@@ -173,9 +175,9 @@ fn eval_infix_expression(
 
 fn eval_if_expression(
     if_exp: ast::IfExpression,
-    env: &mut object::Environment,
+    env: Rc<RefCell<object::Environment>>,
 ) -> Result<object::Object, MonkeyError> {
-    let cond_obj = eval_expression(*if_exp.condition, env)?;
+    let cond_obj = eval_expression(*if_exp.condition, env.clone())?;
 
     let cond = match cond_obj {
         object::Object::Null => false,
@@ -185,10 +187,10 @@ fn eval_if_expression(
     };
 
     if cond {
-        eval_block_statement(if_exp.consequence, env)
+        eval_block_statement(if_exp.consequence, env.clone())
     } else {
         if let Some(alternative) = if_exp.alternative {
-            eval_block_statement(alternative, env)
+            eval_block_statement(alternative, env.clone())
         } else {
             Ok(object::Object::Null)
         }
@@ -197,23 +199,24 @@ fn eval_if_expression(
 
 fn eval_function_literal(
     function: ast::FunctionLiteral,
-    env: &mut object::Environment,
+    env: Rc<RefCell<object::Environment>>,
 ) -> Result<object::Object, MonkeyError> {
+    // Create function with current environment
     Ok(object::Object::Function(
         function.parameters,
         function.body,
-        env.clone(),
+        env,
     ))
 }
 
 fn eval_call_expression(
     call: ast::CallExpression,
-    env: &mut object::Environment,
+    env: Rc<RefCell<object::Environment>>,
 ) -> Result<object::Object, MonkeyError> {
-    let func_obj = eval_expression(*call.function, env)?;
+    let func_obj = eval_expression(*call.function, env.clone())?;
     let mut arg_objs = vec![];
     for arg in call.arguments {
-        arg_objs.push(eval_expression(arg, env)?);
+        arg_objs.push(eval_expression(arg, env.clone())?);
     }
 
     apply_function(func_obj, arg_objs)
@@ -224,15 +227,23 @@ fn apply_function(
     args: Vec<object::Object>,
 ) -> Result<object::Object, MonkeyError> {
     match function {
-        object::Object::Function(identifiers, body, env) => {
-            let mut new_env = object::Environment::new(Some(Box::new(env.clone())));
-            assert_eq!(args.len(), identifiers.len());
+        object::Object::Function(identifiers, body, env_rc) => {
+            // Create a new environment that extends the function's environment
+            let new_env = object::Environment::new(Some(Box::new(env_rc.borrow().clone())));
+            let new_env_rc = Rc::new(RefCell::new(new_env));
 
-            for i in 0..args.len() {
-                new_env.set(&identifiers[i], &args[i]);
+            if args.len() != identifiers.len() {
+                return Err(MonkeyError::WrongArgumentCount {
+                    expected: identifiers.len(),
+                    actual: args.len(),
+                });
             }
 
-            let obj = eval_block_statement(body, &mut new_env)?;
+            for i in 0..args.len() {
+                new_env_rc.borrow_mut().set(&identifiers[i], &args[i]);
+            }
+
+            let obj = eval_block_statement(body, new_env_rc)?;
 
             match obj {
                 object::Object::Return(ret_obj) => Ok(*ret_obj),
@@ -240,7 +251,7 @@ fn apply_function(
             }
         }
         _ => Err(MonkeyError::RuntimeError {
-            message: format!("expecte Function object!"),
+            message: format!("expected Function object!"),
         }),
     }
 }
@@ -254,11 +265,12 @@ fn eval_bang_operator_expression(obj: object::Object) -> object::Object {
     }
 }
 
-fn eval_minus_operator_expression(obj: object::Object) -> object::Object {
-    if let object::Object::Integer(n) = obj {
-        object::Object::Integer(-n)
-    } else {
-        panic!("minus prefix operator only support Integer object!")
+fn eval_minus_operator_expression(obj: object::Object) -> Result<object::Object, MonkeyError> {
+    match obj {
+        object::Object::Integer(n) => Ok(object::Object::Integer(-n)),
+        _ => Err(MonkeyError::RuntimeError {
+            message: "minus prefix operator only support Integer object!".to_string(),
+        }),
     }
 }
 
@@ -442,6 +454,10 @@ mod tests {
                 "let add = fn(x, y) {x + y;} add(1, 2)",
                 object::Object::Integer(3),
             ),
+            (
+                "let fib = fn(x) { if (x < 3) { return x;} else { return fib(x - 1) + fib( x - 2);} } fib(1)",
+                object::Object::Integer(1),
+            ),
         ];
 
         for (input, expected) in tests {
@@ -454,9 +470,9 @@ mod tests {
         let mut parser = parser::Parser::new(lexer);
         let program = parser.parse_program().unwrap();
 
-        let mut env = object::Environment::new(None);
+        let env = Rc::new(RefCell::new(object::Environment::new(None)));
 
-        eval(program, &mut env).unwrap()
+        eval(program, env).unwrap()
     }
 
     fn test_integer_object(obj: object::Object, expected: i64) {

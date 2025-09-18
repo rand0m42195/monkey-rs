@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::rc::Rc;
 
 use crate::ast;
 
@@ -9,7 +11,11 @@ pub enum Object {
     Integer(i64),
     Boolean(bool),
     Return(Box<Object>),
-    Function(Vec<ast::Identifier>, ast::BlockStatement, Environment),
+    Function(
+        Vec<ast::Identifier>,
+        ast::BlockStatement,
+        Rc<RefCell<Environment>>,
+    ),
 }
 
 impl Display for Object {

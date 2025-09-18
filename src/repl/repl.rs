@@ -1,12 +1,14 @@
 use crate::{eval, lexer::Lexer, object, parser::Parser};
+use std::cell::RefCell;
 use std::io::{BufRead, Write};
+use std::rc::Rc;
 
 pub fn start<R: BufRead, W: Write>(reader: &mut R, writer: &mut W) {
     writeln!(writer, "Hello! This is the Monkey programming language!").unwrap();
     writeln!(writer, "Feel free to type in commands").unwrap();
 
     // initial global environment
-    let mut env = object::Environment::new(None);
+    let env = Rc::new(RefCell::new(object::Environment::new(None)));
     loop {
         write!(writer, ">> ").unwrap();
         writer.flush().unwrap();
@@ -29,7 +31,7 @@ pub fn start<R: BufRead, W: Write>(reader: &mut R, writer: &mut W) {
                     continue;
                 }
 
-                let res = eval::eval(program.unwrap(), &mut env).unwrap();
+                let res = eval::eval(program.unwrap(), env.clone()).unwrap();
 
                 writeln!(writer, "{}", res).unwrap();
                 writer.flush().unwrap();

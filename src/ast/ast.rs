@@ -176,7 +176,7 @@ impl Display for IfExpression {
         if let Some(alt) = &self.alternative {
             write!(
                 f,
-                "if {} {{\n{}\n}} else {{\n{}}}",
+                "if {} {{\n{}}} else {{\n{}}}",
                 self.condition, self.consequence, alt
             )
         } else {
