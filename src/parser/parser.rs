@@ -78,10 +78,6 @@ impl Parser {
         let mut program = ast::Program { statements: vec![] };
 
         while self.cur_token.typ() != token::TokenType::EOF {
-            // let stmt = self.parse_statement();
-            // if stmt.is_some() {
-            //     program.statements.push(stmt.unwrap());
-            // }
             let stmt = self.parse_statement()?;
             program.statements.push(stmt);
             self.next_token();
@@ -101,27 +97,17 @@ impl Parser {
     }
 
     fn parse_let_statement(&mut self) -> Result<ast::LetStatement, MonkeyError> {
-        // if !self.expect_peek(token::TokenType::IDENT) {
-        //     return None;
-        // }
         self.expect_peek(token::TokenType::IDENT)?;
 
         let ident = ast::Identifier {
             value: self.cur_token.literal().clone(),
         };
 
-        // if !self.expect_peek(token::TokenType::ASSIGN) {
-        //     return None;
-        // }
         self.expect_peek(token::TokenType::ASSIGN)?;
 
         // now self.cur_token is '=', skip it.
         self.next_token();
 
-        // let exp = self.parse_expression(Precedence::Lowest);
-        // if exp.is_none() {
-        //     return None;
-        // }
         let exp = self.parse_expression(Precedence::Lowest)?;
 
         while self.peek_token_is(token::TokenType::SEMICOLON) {
@@ -137,10 +123,6 @@ impl Parser {
     fn parse_return_statement(&mut self) -> Result<ast::ReturnStatement, MonkeyError> {
         self.next_token();
 
-        // let exp = self.parse_expression(Precedence::Lowest);
-        // if exp.is_none() {
-        //     return None;
-        // }
         let exp = self.parse_expression(Precedence::Lowest)?;
 
         if self.peek_token_is(token::TokenType::SEMICOLON) {
@@ -151,15 +133,6 @@ impl Parser {
     }
 
     fn parse_expression_statement(&mut self) -> Result<ast::Expression, MonkeyError> {
-        // if let Some(node) = self.parse_expression(Precedence::Lowest) {
-        //     if self.peek_token_is(token::TokenType::SEMICOLON) {
-        //         self.next_token();
-        //     }
-        //     Some(node)
-        // } else {
-        //     None
-        // }
-
         let exp = self.parse_expression(Precedence::Lowest)?;
         while self.peek_token_is(token::TokenType::SEMICOLON) {
             self.next_token();
@@ -169,24 +142,12 @@ impl Parser {
 
     fn parse_expression(&mut self, precedence: Precedence) -> Result<ast::Expression, MonkeyError> {
         if let Some(prefix_fn) = self.prefix_parse_fns.get(&self.cur_token.typ()) {
-            // let left_exp = prefix_fn(self);
-            // if left_exp.is_none() {
-            //     return None;
-            // }
-            // let mut left_exp = left_exp.unwrap();
-
             let mut left_exp = prefix_fn(self)?;
 
             while !self.cur_token_is(token::TokenType::SEMICOLON)
                 && precedence < self.peek_token_precedence()
             {
                 if let Some(infix_fn) = self.infix_parse_fns.get(&self.peek_token.typ()) {
-                    // let res = infix_fn(self, left_exp);
-                    // if res.is_none() {
-                    //     return None;
-                    // }
-                    // left_exp = res.unwrap();
-
                     left_exp = infix_fn(self, left_exp)?;
                 } else {
                     return Ok(left_exp);
@@ -295,48 +256,21 @@ impl Parser {
     fn parse_grouped_expression(&mut self) -> Result<ast::Expression, MonkeyError> {
         self.next_token();
 
-        // if let Some(exp) = self.parse_expression(Precedence::Lowest) {
-        //     if !self.expect_peek(token::TokenType::RPAREN) {
-        //         return None;
-        //     }
-        //     Some(exp)
-        // } else {
-        //     None
-        // }
-
         let exp = self.parse_expression(Precedence::Lowest)?;
         self.expect_peek(token::TokenType::RPAREN)?;
         Ok(exp)
     }
 
     fn parse_if_expression(&mut self) -> Result<ast::Expression, MonkeyError> {
-        // cur_token is if, expect next token is '('
-        // if !self.expect_peek(token::TokenType::LPAREN) {
-        //     return None;
-        // }
         self.expect_peek(token::TokenType::LPAREN)?;
         self.next_token(); // skip '('
 
-        // let condition = self.parse_expression(Precedence::Lowest);
-        // if condition.is_none() {
-        //     return None;
-        // }
         let condition = self.parse_expression(Precedence::Lowest)?;
 
-        // if !self.expect_peek(token::TokenType::RPAREN) {
-        //     return None;
-        // }
         self.expect_peek(token::TokenType::RPAREN)?;
 
-        // if !self.expect_peek(token::TokenType::LBRACE) {
-        //     return None;
-        // }
         self.expect_peek(token::TokenType::LBRACE)?;
 
-        // let block = self.parse_block_statements();
-        // if block.is_none() {
-        //     return None;
-        // }
         let block = self.parse_block_statements()?;
 
         let mut if_exp = ast::IfExpression {
@@ -347,15 +281,9 @@ impl Parser {
 
         if self.peek_token_is(token::TokenType::ELSE) {
             self.next_token();
-            // if !self.expect_peek(token::TokenType::LBRACE) {
-            //     return None;
-            // }
+
             self.expect_peek(token::TokenType::LBRACE)?;
 
-            // let alternative = self.parse_block_statements();
-            // if alternative.is_none() {
-            //     return None;
-            // }
             if_exp.alternative = Some(self.parse_block_statements()?);
         }
 
@@ -363,26 +291,12 @@ impl Parser {
     }
 
     fn parse_function_literal(&mut self) -> Result<ast::Expression, MonkeyError> {
-        // if !self.expect_peek(token::TokenType::LPAREN) {
-        //     return None;
-        // }
         self.expect_peek(token::TokenType::LPAREN)?;
 
-        // let parameters = self.parse_function_parameters();
-        // if parameters.is_none() {
-        //     return None;
-        // }
         let parameters = self.parse_function_parameters()?;
 
-        // if !self.expect_peek(token::TokenType::LBRACE) {
-        //     return None;
-        // }
         self.expect_peek(token::TokenType::LBRACE)?;
 
-        // let body = self.parse_block_statements();
-        // if body.is_none() {
-        //     return None;
-        // }
         let body = self.parse_block_statements()?;
 
         Ok(ast::Expression::Fucntion(ast::FunctionLiteral {
@@ -397,10 +311,6 @@ impl Parser {
     ) -> Result<ast::Expression, MonkeyError> {
         self.next_token();
 
-        // let args = self.parse_call_arguments();
-        // if args.is_none() {
-        //     return None;
-        // }
         let args = self.parse_call_arguments()?;
 
         Ok(ast::Expression::Call(ast::CallExpression {
@@ -452,9 +362,6 @@ impl Parser {
             identifiers.push(ident);
         }
 
-        // if !self.expect_peek(token::TokenType::RPAREN) {
-        //     return None;
-        // }
         self.expect_peek(token::TokenType::RPAREN)?;
 
         Ok(identifiers)
@@ -469,28 +376,16 @@ impl Parser {
         }
         self.next_token(); // skip '('
 
-        // let arg = self.parse_expression(Precedence::Lowest);
-        // if arg.is_none() {
-        //     return None;
-        // }
         let arg = self.parse_expression(Precedence::Lowest)?;
         args.push(arg);
 
         while self.peek_token_is(token::TokenType::COMMA) {
             self.next_token();
             self.next_token();
-            // let arg = self.parse_expression(Precedence::Lowest);
-            // if arg.is_none() {
-            //     return None;
-            // }
-            // args.push(arg.unwrap());
             let arg = self.parse_expression(Precedence::Lowest)?;
             args.push(arg);
         }
 
-        // if !self.expect_peek(token::TokenType::RPAREN) {
-        //     return None;
-        // }
         self.expect_peek(token::TokenType::RPAREN)?;
 
         Ok(args)
@@ -787,7 +682,6 @@ mod tests {
         let tests = vec![("true;", true), ("false;", false)];
 
         for (input, _expected) in tests {
-            let lexer = lexer::Lexer::new(input);
             let program = parse_program(input);
 
             assert_eq!(program.statements.len(), 1);

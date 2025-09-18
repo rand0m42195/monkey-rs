@@ -37,7 +37,6 @@ pub enum ObjectType {
     Integer,
     Boolean,
     Return,
-    FunctionLiteral,
     Function,
 }
 
@@ -54,6 +53,18 @@ impl Object {
 
     pub fn is_type(&self, ty: ObjectType) -> bool {
         self.type_of() == ty
+    }
+}
+
+impl Display for ObjectType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ObjectType::Null => write!(f, "Null"),
+            ObjectType::Integer => write!(f, "Integer"),
+            ObjectType::Boolean => write!(f, "Boolean"),
+            ObjectType::Return => write!(f, "Return"),
+            ObjectType::Function => write!(f, "Function"),
+        }
     }
 }
 

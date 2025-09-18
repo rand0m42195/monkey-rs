@@ -1,38 +1,42 @@
-use crate::{ast::ast, object};
+use crate::{ast::ast, errors::MonkeyError, object};
 
-pub fn eval(program: ast::Program, env: &mut object::Environment) -> object::Object {
+pub fn eval(
+    program: ast::Program,
+    env: &mut object::Environment,
+) -> Result<object::Object, MonkeyError> {
     let mut obj = object::Object::Null;
 
     for stmt in program.statements {
-        match eval_statement(stmt, env) {
-            object::Object::Return(inner_obj) => {
-                return *inner_obj;
-            }
+        obj = eval_statement(stmt, env)?;
 
-            other => obj = other,
+        if let object::Object::Return(ret_obj) = obj {
+            return Ok(*ret_obj);
         }
     }
 
-    obj
+    Ok(obj)
 }
 
 fn eval_block_statement(
     block: ast::BlockStatement,
     env: &mut object::Environment,
-) -> object::Object {
+) -> Result<object::Object, MonkeyError> {
     let mut obj = object::Object::Null;
 
     for stmt in block.statements {
-        obj = eval_statement(stmt, env);
+        obj = eval_statement(stmt, env)?;
         if obj.is_type(object::ObjectType::Return) {
-            return obj;
+            break;
         }
     }
 
-    obj
+    Ok(obj)
 }
 
-fn eval_statement(stmt: ast::Statement, env: &mut object::Environment) -> object::Object {
+fn eval_statement(
+    stmt: ast::Statement,
+    env: &mut object::Environment,
+) -> Result<object::Object, MonkeyError> {
     match stmt {
         ast::Statement::Let(let_stmt) => eval_let_statment(let_stmt, env),
         ast::Statement::Return(ret_stmt) => eval_return_statement(ret_stmt, env),
@@ -40,30 +44,37 @@ fn eval_statement(stmt: ast::Statement, env: &mut object::Environment) -> object
     }
 }
 
-fn eval_let_statment(stmt: ast::LetStatement, env: &mut object::Environment) -> object::Object {
-    let obj = eval_expression(stmt.value, env);
+fn eval_let_statment(
+    stmt: ast::LetStatement,
+    env: &mut object::Environment,
+) -> Result<object::Object, MonkeyError> {
+    let obj: object::Object = eval_expression(stmt.value, env)?;
     env.set(&stmt.name, &obj);
 
-    object::Object::Null
+    Ok(object::Object::Null)
 }
 
 fn eval_return_statement(
     stmt: ast::ReturnStatement,
     env: &mut object::Environment,
-) -> object::Object {
-    object::Object::Return(Box::new(eval_expression(stmt.expression, env)))
+) -> Result<object::Object, MonkeyError> {
+    let obj = eval_expression(stmt.expression, env)?;
+    Ok(object::Object::Return(Box::new(obj)))
 }
 
 fn eval_expression_statement(
     stmt: ast::ExpressionStatement,
     env: &mut object::Environment,
-) -> object::Object {
+) -> Result<object::Object, MonkeyError> {
     eval_expression(stmt.expression, env)
 }
 
-fn eval_expression(exp: ast::Expression, env: &mut object::Environment) -> object::Object {
+fn eval_expression(
+    exp: ast::Expression,
+    env: &mut object::Environment,
+) -> Result<object::Object, MonkeyError> {
     match exp {
-        ast::Expression::Empty() => object::Object::Null,
+        ast::Expression::Empty() => Ok(object::Object::Null),
         ast::Expression::Identifier(ident) => eval_identifier(ident, env),
         ast::Expression::Integer(il) => eval_integer_literal(il),
         ast::Expression::Bool(boolean) => eval_boolean(boolean),
@@ -75,74 +86,96 @@ fn eval_expression(exp: ast::Expression, env: &mut object::Environment) -> objec
     }
 }
 
-fn eval_identifier(ident: ast::Identifier, env: &object::Environment) -> object::Object {
-    let obj = env.get(&ident).unwrap();
-    obj
+fn eval_identifier(
+    ident: ast::Identifier,
+    env: &object::Environment,
+) -> Result<object::Object, MonkeyError> {
+    if let Some(obj) = env.get(&ident) {
+        Ok(obj)
+    } else {
+        Err(MonkeyError::RuntimeError {
+            message: format!("identifier '{}' not found", ident),
+        })
+    }
 }
 
-fn eval_integer_literal(il: ast::IntegerLiteral) -> object::Object {
-    object::Object::Integer(il.value)
+fn eval_integer_literal(il: ast::IntegerLiteral) -> Result<object::Object, MonkeyError> {
+    Ok(object::Object::Integer(il.value))
 }
 
-fn eval_boolean(b: ast::Boolean) -> object::Object {
-    object::Object::Boolean(b.value)
+fn eval_boolean(b: ast::Boolean) -> Result<object::Object, MonkeyError> {
+    Ok(object::Object::Boolean(b.value))
 }
 
 fn eval_prefix_expression(
     prefix: ast::PrefixExpression,
     env: &mut object::Environment,
-) -> object::Object {
+) -> Result<object::Object, MonkeyError> {
     match prefix.operator.as_str() {
         "!" => {
-            let obj = eval_expression(*prefix.right, env);
-            eval_bang_operator_expression(obj)
+            let obj = eval_expression(*prefix.right, env)?;
+            Ok(eval_bang_operator_expression(obj))
         }
         "-" => {
-            let obj = eval_expression(*prefix.right, env);
-            eval_minus_operator_expression(obj)
+            let obj = eval_expression(*prefix.right, env)?;
+            Ok(eval_minus_operator_expression(obj))
         }
-        op => panic!("unsupported perfix operator {}", op),
+        op => Err(MonkeyError::SyntaxError {
+            message: format!("unsupported perfix operator {}", op),
+        }),
     }
 }
 
 fn eval_infix_expression(
     infix: ast::InfixExpression,
     env: &mut object::Environment,
-) -> object::Object {
+) -> Result<object::Object, MonkeyError> {
     let left_exp = *infix.left;
     let right_exp = *infix.right;
     let operator = infix.operator;
 
-    let lobj = eval_expression(left_exp, env);
-    let robj = eval_expression(right_exp, env);
-
-    assert_eq!(lobj.type_of(), robj.type_of());
+    let lobj = eval_expression(left_exp, env)?;
+    let robj = eval_expression(right_exp, env)?;
 
     match (lobj, robj) {
         (object::Object::Integer(l), object::Object::Integer(r)) => match operator.as_str() {
-            "+" => object::Object::Integer(l + r),
-            "-" => object::Object::Integer(l - r),
-            "*" => object::Object::Integer(l * r),
-            "/" => object::Object::Integer(l / r),
-            "==" => object::Object::Boolean(l == r),
-            "!=" => object::Object::Boolean(l != r),
-            ">" => object::Object::Boolean(l > r),
-            "<" => object::Object::Boolean(l < r),
-            op => panic!("Integer object does not support infix operator '{}'", op),
+            "+" => Ok(object::Object::Integer(l + r)),
+            "-" => Ok(object::Object::Integer(l - r)),
+            "*" => Ok(object::Object::Integer(l * r)),
+            "/" => Ok(object::Object::Integer(l / r)),
+            "==" => Ok(object::Object::Boolean(l == r)),
+            "!=" => Ok(object::Object::Boolean(l != r)),
+            ">" => Ok(object::Object::Boolean(l > r)),
+            "<" => Ok(object::Object::Boolean(l < r)),
+            op => Err(MonkeyError::RuntimeError {
+                message: format!("Integer object does not support infix operator '{}'", op),
+            }),
         },
 
         (object::Object::Boolean(l), object::Object::Boolean(r)) => match operator.as_str() {
-            "==" => object::Object::Boolean(l == r),
-            "!=" => object::Object::Boolean(l != r),
-            op => panic!("Boolean object does not support infix operator '{}'", op),
+            "==" => Ok(object::Object::Boolean(l == r)),
+            "!=" => Ok(object::Object::Boolean(l != r)),
+            op => Err(MonkeyError::RuntimeError {
+                message: format!("Boolean object does not support infix operator '{}'", op),
+            }),
         },
 
-        _ => panic!("only Integer object can be infix operator!"),
+        (l, r) => Err(MonkeyError::RuntimeError {
+            message: format!(
+                "operator '{}' can not be between in object '{}' and '{}'",
+                operator,
+                l.type_of(),
+                r.type_of(),
+            ),
+        }),
     }
 }
 
-fn eval_if_expression(if_exp: ast::IfExpression, env: &mut object::Environment) -> object::Object {
-    let cond_obj = eval_expression(*if_exp.condition, env);
+fn eval_if_expression(
+    if_exp: ast::IfExpression,
+    env: &mut object::Environment,
+) -> Result<object::Object, MonkeyError> {
+    let cond_obj = eval_expression(*if_exp.condition, env)?;
 
     let cond = match cond_obj {
         object::Object::Null => false,
@@ -157,7 +190,7 @@ fn eval_if_expression(if_exp: ast::IfExpression, env: &mut object::Environment) 
         if let Some(alternative) = if_exp.alternative {
             eval_block_statement(alternative, env)
         } else {
-            object::Object::Null
+            Ok(object::Object::Null)
         }
     }
 }
@@ -165,24 +198,31 @@ fn eval_if_expression(if_exp: ast::IfExpression, env: &mut object::Environment) 
 fn eval_function_literal(
     function: ast::FunctionLiteral,
     env: &mut object::Environment,
-) -> object::Object {
-    object::Object::Function(function.parameters, function.body, env.clone())
+) -> Result<object::Object, MonkeyError> {
+    Ok(object::Object::Function(
+        function.parameters,
+        function.body,
+        env.clone(),
+    ))
 }
 
 fn eval_call_expression(
     call: ast::CallExpression,
     env: &mut object::Environment,
-) -> object::Object {
-    let func_obj = eval_expression(*call.function, env);
+) -> Result<object::Object, MonkeyError> {
+    let func_obj = eval_expression(*call.function, env)?;
     let mut arg_objs = vec![];
     for arg in call.arguments {
-        arg_objs.push(eval_expression(arg, env));
+        arg_objs.push(eval_expression(arg, env)?);
     }
 
     apply_function(func_obj, arg_objs)
 }
 
-fn apply_function(function: object::Object, args: Vec<object::Object>) -> object::Object {
+fn apply_function(
+    function: object::Object,
+    args: Vec<object::Object>,
+) -> Result<object::Object, MonkeyError> {
     match function {
         object::Object::Function(identifiers, body, env) => {
             let mut new_env = object::Environment::new(Some(Box::new(env.clone())));
@@ -192,14 +232,16 @@ fn apply_function(function: object::Object, args: Vec<object::Object>) -> object
                 new_env.set(&identifiers[i], &args[i]);
             }
 
-            let obj = eval_block_statement(body, &mut new_env);
+            let obj = eval_block_statement(body, &mut new_env)?;
 
             match obj {
-                object::Object::Return(ret_obj) => *ret_obj,
-                o => o,
+                object::Object::Return(ret_obj) => Ok(*ret_obj),
+                o => Ok(o),
             }
         }
-        _ => panic!("expecte Function object!"),
+        _ => Err(MonkeyError::RuntimeError {
+            message: format!("expecte Function object!"),
+        }),
     }
 }
 
@@ -414,7 +456,7 @@ mod tests {
 
         let mut env = object::Environment::new(None);
 
-        eval(program, &mut env)
+        eval(program, &mut env).unwrap()
     }
 
     fn test_integer_object(obj: object::Object, expected: i64) {

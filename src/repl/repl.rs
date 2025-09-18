@@ -25,11 +25,11 @@ pub fn start<R: BufRead, W: Write>(reader: &mut R, writer: &mut W) {
                 let mut parser = Parser::new(lexer);
                 let program = parser.parse_program();
                 if let Err(err) = program {
-                    writeln!(writer, "parse error: {}", err);
+                    writeln!(writer, "parse error: {}", err).unwrap();
                     continue;
                 }
 
-                let res = eval::eval(program.unwrap(), &mut env);
+                let res = eval::eval(program.unwrap(), &mut env).unwrap();
 
                 writeln!(writer, "{}", res).unwrap();
                 writer.flush().unwrap();
