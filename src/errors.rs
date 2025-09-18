@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum MonkeyError {
     #[error("Syntax error: {message}")]
     SyntaxError { message: String },
@@ -13,7 +13,4 @@ pub enum MonkeyError {
 
     #[error("Wrong number of arguments: expected {expected}, got {actual}")]
     WrongArgumentCount { expected: usize, actual: usize },
-
-    #[error("IO error: {0}")]
-    IoError(#[from] std::io::Error),
 }

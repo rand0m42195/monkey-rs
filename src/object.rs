@@ -4,6 +4,9 @@ use std::fmt::Display;
 use std::rc::Rc;
 
 use crate::ast;
+use crate::errors::MonkeyError;
+
+pub type BuiltinFunc = fn(args: &[Object]) -> Result<Object, MonkeyError>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Object {
@@ -17,17 +20,18 @@ pub enum Object {
         ast::BlockStatement,
         Rc<RefCell<Environment>>,
     ),
+    BuiltinFunction(BuiltinFunc),
 }
 
 impl Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Object::Null => write!(f, "null"),
-            Object::Integer(n) => write!(f, "{}", n),
-            Object::String(s) => write!(f, "{}", s),
-            Object::Boolean(b) => write!(f, "{}", b),
-            Object::Return(r) => write!(f, "{}", r),
-            Object::Function(params, block, _env) => {
+            Self::Null => write!(f, "null"),
+            Self::Integer(n) => write!(f, "{}", n),
+            Self::String(s) => write!(f, "{}", s),
+            Self::Boolean(b) => write!(f, "{}", b),
+            Self::Return(r) => write!(f, "{}", r),
+            Self::Function(params, block, _env) => {
                 let params = params
                     .iter()
                     .map(|p| p.to_string())
@@ -35,6 +39,8 @@ impl Display for Object {
                     .join(", ");
                 write!(f, "fn({}) {{\n{}}}", params, block)
             }
+            // TODO:
+            Self::BuiltinFunction(_b) => write!(f, "[builtin function]",),
         }
     }
 }
@@ -47,17 +53,19 @@ pub enum ObjectType {
     Boolean,
     Return,
     Function,
+    BuiltinFunction,
 }
 
 impl Object {
     pub fn type_of(&self) -> ObjectType {
         match self {
-            Object::Null => ObjectType::Null,
-            Object::Integer(_) => ObjectType::Integer,
-            Object::String(_) => ObjectType::String,
-            Object::Boolean(_) => ObjectType::Boolean,
-            Object::Return(_) => ObjectType::Return,
+            Self::Null => ObjectType::Null,
+            Self::Integer(_) => ObjectType::Integer,
+            Self::String(_) => ObjectType::String,
+            Self::Boolean(_) => ObjectType::Boolean,
+            Self::Return(_) => ObjectType::Return,
             Self::Function(_, _, _) => ObjectType::Function,
+            Self::BuiltinFunction(_) => ObjectType::BuiltinFunction,
         }
     }
 
@@ -69,12 +77,13 @@ impl Object {
 impl Display for ObjectType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ObjectType::Null => write!(f, "Null"),
-            ObjectType::Integer => write!(f, "Integer"),
-            ObjectType::String => write!(f, "String"),
-            ObjectType::Boolean => write!(f, "Boolean"),
-            ObjectType::Return => write!(f, "Return"),
-            ObjectType::Function => write!(f, "Function"),
+            Self::Null => write!(f, "Null"),
+            Self::Integer => write!(f, "Integer"),
+            Self::String => write!(f, "String"),
+            Self::Boolean => write!(f, "Boolean"),
+            Self::Return => write!(f, "Return"),
+            Self::Function => write!(f, "Function"),
+            Self::BuiltinFunction => write!(f, "BuiltinFunction"),
         }
     }
 }

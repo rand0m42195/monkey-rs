@@ -1,6 +1,39 @@
 use crate::{ast, errors::MonkeyError, object};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
+
+use lazy_static::lazy_static;
+
+fn builtin_len(args: &[object::Object]) -> Result<object::Object, MonkeyError> {
+    if args.len() != 1 {
+        Err(MonkeyError::RuntimeError {
+            message: format!(
+                "builtin function 'len' expected 1 argument, got {}",
+                args.len()
+            ),
+        })
+    } else {
+        match &args[0] {
+            object::Object::String(s) => Ok(object::Object::Integer(s.len() as i64)),
+            other => Err(MonkeyError::RuntimeError {
+                message: format!(
+                    "builtin function 'len' only support String object, got {}",
+                    other.type_of()
+                ),
+            }),
+        }
+    }
+}
+
+lazy_static! {
+    static ref BUILTIN_FUNCTIONS: HashMap<&'static str, object::BuiltinFunc> = {
+        let mut m: HashMap<&'static str, object::BuiltinFunc> = HashMap::new();
+        m.insert("len", builtin_len);
+
+        m
+    };
+}
 
 pub fn eval(
     program: ast::Program,
@@ -96,9 +129,13 @@ fn eval_identifier(
     if let Some(obj) = env.borrow().get(&ident) {
         Ok(obj)
     } else {
-        Err(MonkeyError::RuntimeError {
-            message: format!("identifier '{}' not found", ident),
-        })
+        if let Some(&builtin_fn) = BUILTIN_FUNCTIONS.get(ident.value.as_str()) {
+            Ok(object::Object::BuiltinFunction(builtin_fn))
+        } else {
+            Err(MonkeyError::RuntimeError {
+                message: format!("identifier '{}' not found", ident),
+            })
+        }
     }
 }
 
@@ -264,6 +301,8 @@ fn apply_function(
                 o => Ok(o),
             }
         }
+
+        object::Object::BuiltinFunction(builtin_fn) => builtin_fn(&args),
         _ => Err(MonkeyError::RuntimeError {
             message: format!("expected Function object!"),
         }),
@@ -507,6 +546,37 @@ mod tests {
 
         for (input, expected) in tests {
             assert_eq!(test_eval_helper(input), expected);
+        }
+    }
+
+    #[test]
+    fn test_builtin_function() {
+        let tests = vec![
+            (r#"len("")"#, Ok(object::Object::Integer(0))),
+            (r#"len("hello")"#, Ok(object::Object::Integer(5))),
+            (
+                r#"len(true)"#,
+                Err(MonkeyError::RuntimeError {
+                    message: "builtin function 'len' only support String object, got Boolean"
+                        .to_string(),
+                }),
+            ),
+            (
+                r#"len(123)"#,
+                Err(MonkeyError::RuntimeError {
+                    message: "builtin function 'len' only support String object, got Integer"
+                        .to_string(),
+                }),
+            ),
+        ];
+        for (input, expected) in tests {
+            let lexer = lexer::Lexer::new(input);
+            let mut parser = parser::Parser::new(lexer);
+            let program = parser.parse_program().unwrap();
+
+            let env = Rc::new(RefCell::new(object::Environment::new(None)));
+
+            assert_eq!(eval(program, env), expected);
         }
     }
 
