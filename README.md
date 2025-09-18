@@ -14,8 +14,10 @@ There is a **Go** implementation of the Monkey language interpreter [here](https
 - **Lexer**: Tokenizes Monkey language source code into tokens
 - **Parser**: Complete Pratt parser with precedence handling
 - **AST Generation**: Full Abstract Syntax Tree construction
+- **Evaluator**: Complete expression and statement evaluation engine
+- **Environment**: Variable scope management with closure support
 - **REPL**: Interactive Read-Eval-Print Loop with customizable I/O
-- **Comprehensive Testing**: Unit tests for lexer and parser functionality
+- **Comprehensive Testing**: Unit tests for lexer, parser, and evaluator functionality
 
 ### Supported Language Features
 - **Expressions**:
@@ -62,6 +64,11 @@ src/
 ├── ast/             # Abstract Syntax Tree
 │   ├── ast.rs       # AST node definitions
 │   └── mod.rs       # Module exports
+├── eval/            # Evaluation engine
+│   ├── eval.rs      # Main evaluator implementation
+│   └── mod.rs       # Module exports
+├── object/          # Object system and environment
+│   ├── mod.rs       # Object types and environment management
 ├── repl/            # Read-Eval-Print Loop
 │   ├── repl.rs      # REPL implementation
 │   └── mod.rs       # Module exports
@@ -99,23 +106,27 @@ $ cargo run
 Hello! This is the Monkey programming language!
 Feel free to type in commands
 >> let x = 5;
-let x = 5;
+null
 >> let y = 10;
-let y = 10;
+null
 >> x + y * 2;
-(x + (y * 2))
->> fn(a, b) { a + b; }
-fn(a, b) {
-(a + b)
-}
+25
+>> let add = fn(a, b) { a + b; };
+null
 >> add(5, 3);
-add(5, 3)
+8
 >> if (x > y) { x } else { y };
-if ((x > y)) {
-x
-} else {
-y
-}
+10
+>> let multiply = fn(x, y) { x * y; };
+null
+>> multiply(add(2, 3), 4);
+20
+>> let isEven = fn(n) { n % 2 == 0; };
+null
+>> isEven(4);
+true
+>> isEven(5);
+false
 ```
 
 ## Development Roadmap
@@ -131,16 +142,16 @@ y
   - [x] Statement nodes (let, return, expression, block)
   - [x] Program root node
 
-### Phase 2: Evaluation Engine
-- [ ] **Evaluator**: Implement expression and statement evaluation
-  - [ ] Integer arithmetic operations
-  - [ ] Boolean operations and comparisons
-  - [ ] Variable binding and lookup
-  - [ ] Function definition and calling
-  - [ ] Conditional evaluation (if/else)
-- [ ] **Environment**: Variable scope management
-  - [ ] Local and global variable storage
-  - [ ] Function closure support
+### Phase 2: Evaluation Engine ✅ COMPLETED
+- [x] **Evaluator**: Implement expression and statement evaluation
+  - [x] Integer arithmetic operations
+  - [x] Boolean operations and comparisons
+  - [x] Variable binding and lookup
+  - [x] Function definition and calling
+  - [x] Conditional evaluation (if/else)
+- [x] **Environment**: Variable scope management
+  - [x] Local and global variable storage
+  - [x] Function closure support
 
 ### Phase 3: Advanced Features
 - [ ] **Built-in Functions**: Implement standard library
@@ -198,6 +209,7 @@ cargo test -- --nocapture
 # Run specific test module
 cargo test lexer::tests
 cargo test parser::tests
+cargo test eval::tests
 ```
 
 ## Contributing
