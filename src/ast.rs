@@ -11,13 +11,13 @@ pub enum Statement {
 impl Display for Statement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Statement::Let(s) => {
+            Self::Let(s) => {
                 write!(f, "{}", s)
             }
-            Statement::Return(s) => {
+            Self::Return(s) => {
                 write!(f, "{}", s)
             }
-            Statement::Expression(s) => {
+            Self::Expression(s) => {
                 write!(f, "{}", s)
             }
         }
@@ -31,6 +31,7 @@ pub enum Expression {
     Int(Integer),
     String(MString),
     Bool(Boolean),
+    Array(Array),
     Prefix(PrefixExpression),
     Infix(InfixExpression),
     If(IfExpression),
@@ -41,22 +42,24 @@ pub enum Expression {
 impl Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Expression::Empty() => write!(f, "EMPTY"),
-            Expression::Ident(e) => write!(f, "{}", e),
-            Expression::Int(e) => write!(f, "{}", e),
-            Expression::String(e) => write!(f, "{}", e),
-            Expression::Bool(e) => write!(f, "{}", e),
-            Expression::Prefix(e) => write!(f, "{}", e),
-            Expression::Infix(e) => write!(f, "{}", e),
-            Expression::If(e) => write!(f, "{}", e),
-            Expression::Fucntion(e) => write!(f, "{}", e),
-            Expression::Call(e) => write!(f, "{}", e),
+            Self::Empty() => write!(f, "EMPTY"),
+            Self::Ident(e) => write!(f, "{}", e),
+            Self::Int(e) => write!(f, "{}", e),
+            Self::String(e) => write!(f, "{}", e),
+            Self::Bool(e) => write!(f, "{}", e),
+            Self::Array(e) => write!(f, "{}", e),
+            Self::Prefix(e) => write!(f, "{}", e),
+            Self::Infix(e) => write!(f, "{}", e),
+            Self::If(e) => write!(f, "{}", e),
+            Self::Fucntion(e) => write!(f, "{}", e),
+            Self::Call(e) => write!(f, "{}", e),
         }
         // DO NOT USE this code, it will cause inifinite loop!
         // write!(f, "{}", self)
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Program {
     pub statements: Vec<Statement>,
 }
@@ -162,6 +165,24 @@ pub struct Boolean {
 impl Display for Boolean {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Array {
+    pub elems: Vec<Expression>,
+}
+
+impl Display for Array {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = self
+            .elems
+            .iter()
+            .map(|e| format!("{}", e.to_string()))
+            .collect::<Vec<String>>()
+            .join(", ");
+
+        write!(f, "[{}]", s)
     }
 }
 

@@ -58,6 +58,7 @@ impl Parser {
         parser.register_prefix_fn(token::TokenType::LPAREN, Self::parse_grouped_expression);
         parser.register_prefix_fn(token::TokenType::IF, Self::parse_if_expression);
         parser.register_prefix_fn(token::TokenType::FUNCTION, Self::parse_function_literal);
+        parser.register_prefix_fn(token::TokenType::LBRACKET, Self::parse_array);
 
         parser.register_infix_fn(token::TokenType::PLUS, Self::parse_infix_expression);
         parser.register_infix_fn(token::TokenType::MINUS, Self::parse_infix_expression);
@@ -212,6 +213,11 @@ impl Parser {
         Ok(ast::Expression::String(ast::MString::new(
             &self.cur_token.literal(),
         )))
+    }
+
+    fn parse_array(&mut self) -> Result<ast::Expression, MonkeyError> {
+        let exps = self.parse_expressions(token::TokenType::RBRACKET)?;
+        Ok(ast::Expression::Array(ast::Array { elems: exps }))
     }
 
     fn parse_boolean(&mut self) -> Result<ast::Expression, MonkeyError> {
@@ -379,27 +385,32 @@ impl Parser {
     }
 
     fn parse_call_arguments(&mut self) -> Result<Vec<ast::Expression>, MonkeyError> {
-        let mut args = vec![];
+        let exps = self.parse_expressions(token::TokenType::RPAREN)?;
+        Ok(exps)
+    }
 
-        if self.peek_token_is(token::TokenType::RPAREN) {
+    fn parse_expressions(
+        &mut self,
+        end: token::TokenType,
+    ) -> Result<Vec<ast::Expression>, MonkeyError> {
+        let mut exps = vec![];
+
+        if self.peek_token_is(end) {
             self.next_token();
-            return Ok(args);
+            return Ok(exps);
         }
-        self.next_token(); // skip '('
-
-        let arg = self.parse_expression(Precedence::Lowest)?;
-        args.push(arg);
+        self.next_token();
+        exps.push(self.parse_expression(Precedence::Lowest)?);
 
         while self.peek_token_is(token::TokenType::COMMA) {
             self.next_token();
             self.next_token();
-            let arg = self.parse_expression(Precedence::Lowest)?;
-            args.push(arg);
+            exps.push(self.parse_expression(Precedence::Lowest)?);
         }
 
-        self.expect_peek(token::TokenType::RPAREN)?;
+        self.expect_peek(end)?;
 
-        Ok(args)
+        Ok(exps)
     }
 
     fn next_token(&mut self) {
@@ -724,10 +735,40 @@ mod tests {
     #[test]
     fn test_function_literal() {
         let input = "fn(x, y) { x + y; }";
-
         let program = parse_program(input);
 
         assert_eq!(program.statements.len(), 1);
+
+        // Check AST structure
+        let expected = ast::Program {
+            statements: vec![ast::Statement::Expression(ast::ExpressionStatement {
+                expression: ast::Expression::Fucntion(ast::FunctionLiteral {
+                    parameters: vec![
+                        ast::Identifier {
+                            value: "x".to_string(),
+                        },
+                        ast::Identifier {
+                            value: "y".to_string(),
+                        },
+                    ],
+                    body: ast::BlockStatement {
+                        statements: vec![ast::Statement::Expression(ast::ExpressionStatement {
+                            expression: ast::Expression::Infix(ast::InfixExpression {
+                                left: Box::new(ast::Expression::Ident(ast::Identifier {
+                                    value: "x".to_string(),
+                                })),
+                                operator: "+".to_string(),
+                                right: Box::new(ast::Expression::Ident(ast::Identifier {
+                                    value: "y".to_string(),
+                                })),
+                            }),
+                        })],
+                    },
+                }),
+            })],
+        };
+
+        assert_eq!(program, expected);
         // Pretty-print should include a trailing blank line from BlockStatement and FunctionLiteral
         assert_eq!(program.to_string(), "fn(x, y) {\n(x + y)\n}");
     }
@@ -735,22 +776,95 @@ mod tests {
     #[test]
     fn test_call_expression() {
         let input = "add(1, 2 * 3, 4 + 5);";
+        let expected = ast::Program {
+            statements: vec![ast::Statement::Expression(ast::ExpressionStatement {
+                expression: ast::Expression::Call(ast::CallExpression {
+                    function: Box::new(ast::Expression::Ident(ast::Identifier {
+                        value: "add".to_string(),
+                    })),
+                    arguments: vec![
+                        ast::Expression::Int(ast::Integer::new(1)),
+                        ast::Expression::Infix(ast::InfixExpression {
+                            left: Box::new(ast::Expression::Int(ast::Integer::new(2))),
+                            operator: "*".to_string(),
+                            right: Box::new(ast::Expression::Int(ast::Integer::new(3))),
+                        }),
+                        ast::Expression::Infix(ast::InfixExpression {
+                            left: Box::new(ast::Expression::Int(ast::Integer::new(4))),
+                            operator: "+".to_string(),
+                            right: Box::new(ast::Expression::Int(ast::Integer::new(5))),
+                        }),
+                    ],
+                }),
+            })],
+        };
         let program = parse_program(input);
 
         assert_eq!(program.statements.len(), 1);
-        // Note: Call expressions are not yet implemented in the AST
-        // This test will need to be updated when CallExpression is added
+        assert_eq!(program, expected);
     }
 
-    fn test_let_statement(_stmt: &ast::LetStatement, _name: &str, _value: &str) {
-        // assert_eq!(stmt.token_literal(), "let".to_string());
-        // assert_eq!(stmt.name.token_literal(), name.to_string());
-        // TODO:
-        // assert_eq!(stmt.value)
+    #[test]
+    fn test_array() {
+        let input = "[1, 2 * 2, 3 + 3]";
+        let expected = ast::Program {
+            statements: vec![ast::Statement::Expression(ast::ExpressionStatement {
+                expression: ast::Expression::Array(ast::Array {
+                    elems: vec![
+                        ast::Expression::Int(ast::Integer::new(1)),
+                        ast::Expression::Infix(ast::InfixExpression {
+                            left: Box::new(ast::Expression::Int(ast::Integer::new(2))),
+                            operator: "*".to_string(),
+                            right: Box::new(ast::Expression::Int(ast::Integer::new(2))),
+                        }),
+                        ast::Expression::Infix(ast::InfixExpression {
+                            left: Box::new(ast::Expression::Int(ast::Integer::new(3))),
+                            operator: "+".to_string(),
+                            right: Box::new(ast::Expression::Int(ast::Integer::new(3))),
+                        }),
+                    ],
+                }),
+            })],
+        };
+        let program = parse_program(input);
+
+        assert_eq!(program, expected);
     }
 
-    fn test_return_statement(_stmt: &ast::ReturnStatement) {
-        // assert_eq!(stmt.token_literal(), "return".to_string());
+    fn test_let_statement(stmt: &ast::LetStatement, name: &str, value: &str) {
+        assert_eq!(stmt.name.value, name);
+
+        match &stmt.value {
+            ast::Expression::Ident(ident) => {
+                assert_eq!(ident.value, value);
+            }
+            ast::Expression::Int(int) => {
+                assert_eq!(int.to_string(), value);
+            }
+            ast::Expression::Bool(boolean) => {
+                assert_eq!(boolean.value.to_string(), value);
+            }
+            _ => {
+                panic!("unexpected value type: {:?}", stmt.value);
+            }
+        }
+    }
+
+    fn test_return_statement(stmt: &ast::ReturnStatement) {
+        // Verify that return statement has an expression
+        match &stmt.expression {
+            ast::Expression::Ident(_) => {}
+            ast::Expression::Int(_) => {}
+            ast::Expression::Bool(_) => {}
+            ast::Expression::Prefix(_) => {}
+            ast::Expression::Infix(_) => {}
+            _ => {
+                panic!(
+                    "unexpected expression type in return statement: {:?}",
+                    stmt.expression
+                );
+            }
+        }
     }
 
     fn parse_program(input: &str) -> Program {

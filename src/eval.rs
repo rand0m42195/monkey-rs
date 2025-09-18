@@ -119,6 +119,7 @@ fn eval_expression(
         ast::Expression::If(if_exp) => eval_if_expression(if_exp, env.clone()),
         ast::Expression::Fucntion(function) => eval_function_literal(function, env.clone()),
         ast::Expression::Call(call) => eval_call_expression(call, env.clone()),
+        _ => panic!("unimplemented"),
     }
 }
 
