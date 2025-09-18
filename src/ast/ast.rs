@@ -3,23 +3,23 @@ use std::fmt::Display;
 use crate::token;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum StatementNode {
+pub enum Statement {
     Let(LetStatement),
     Return(ReturnStatement),
     Expression(ExpressionStatement),
     // Block(BlockStatement),
 }
 
-impl Display for StatementNode {
+impl Display for Statement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            StatementNode::Let(s) => {
+            Statement::Let(s) => {
                 write!(f, "{}", s)
             }
-            StatementNode::Return(s) => {
+            Statement::Return(s) => {
                 write!(f, "{}", s)
             }
-            StatementNode::Expression(s) => {
+            Statement::Expression(s) => {
                 write!(f, "{}", s)
             }
         }
@@ -27,30 +27,30 @@ impl Display for StatementNode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ExpressionNode {
+pub enum Expression {
     Empty(),
     Identifier(Identifier),
     Integer(IntegerLiteral),
+    Bool(Boolean),
     Prefix(PrefixExpression),
     Infix(InfixExpression),
-    Bool(Boolean),
     If(IfExpression),
     Fucntion(FunctionLiteral),
     Call(CallExpression),
 }
 
-impl Display for ExpressionNode {
+impl Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ExpressionNode::Empty() => write!(f, "EMPTY"),
-            ExpressionNode::Identifier(e) => write!(f, "{}", e),
-            ExpressionNode::Integer(e) => write!(f, "{}", e),
-            ExpressionNode::Prefix(e) => write!(f, "{}", e),
-            ExpressionNode::Infix(e) => write!(f, "{}", e),
-            ExpressionNode::Bool(e) => write!(f, "{}", e),
-            ExpressionNode::If(e) => write!(f, "{}", e),
-            ExpressionNode::Fucntion(e) => write!(f, "{}", e),
-            ExpressionNode::Call(e) => write!(f, "{}", e),
+            Expression::Empty() => write!(f, "EMPTY"),
+            Expression::Identifier(e) => write!(f, "{}", e),
+            Expression::Integer(e) => write!(f, "{}", e),
+            Expression::Bool(e) => write!(f, "{}", e),
+            Expression::Prefix(e) => write!(f, "{}", e),
+            Expression::Infix(e) => write!(f, "{}", e),
+            Expression::If(e) => write!(f, "{}", e),
+            Expression::Fucntion(e) => write!(f, "{}", e),
+            Expression::Call(e) => write!(f, "{}", e),
         }
         // DO NOT USE this code, it will cause inifinite loop!
         // write!(f, "{}", self)
@@ -58,7 +58,7 @@ impl Display for ExpressionNode {
 }
 
 pub struct Program {
-    pub statements: Vec<StatementNode>,
+    pub statements: Vec<Statement>,
 }
 
 impl Display for Program {
@@ -74,7 +74,7 @@ impl Display for Program {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LetStatement {
     pub name: Identifier,
-    pub value: ExpressionNode,
+    pub value: Expression,
 }
 
 impl Display for LetStatement {
@@ -85,7 +85,7 @@ impl Display for LetStatement {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReturnStatement {
-    pub expression: ExpressionNode,
+    pub expression: Expression,
 }
 
 impl Display for ReturnStatement {
@@ -96,7 +96,7 @@ impl Display for ReturnStatement {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExpressionStatement {
-    pub expression: ExpressionNode,
+    pub expression: Expression,
 }
 
 impl Display for ExpressionStatement {
@@ -105,7 +105,7 @@ impl Display for ExpressionStatement {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Identifier {
     pub value: String,
 }
@@ -142,7 +142,7 @@ impl Display for Boolean {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PrefixExpression {
     pub operator: String,
-    pub right: Box<ExpressionNode>,
+    pub right: Box<Expression>,
 }
 
 impl Display for PrefixExpression {
@@ -153,9 +153,9 @@ impl Display for PrefixExpression {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InfixExpression {
-    pub left: Box<ExpressionNode>,
+    pub left: Box<Expression>,
     pub operator: String,
-    pub right: Box<ExpressionNode>,
+    pub right: Box<Expression>,
 }
 
 impl Display for InfixExpression {
@@ -166,7 +166,7 @@ impl Display for InfixExpression {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfExpression {
-    pub condition: Box<ExpressionNode>,
+    pub condition: Box<Expression>,
     pub consequence: BlockStatement,
     pub alternative: Option<BlockStatement>,
 }
@@ -187,7 +187,7 @@ impl Display for IfExpression {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlockStatement {
-    pub statements: Vec<StatementNode>,
+    pub statements: Vec<Statement>,
 }
 
 impl Display for BlockStatement {
@@ -219,8 +219,8 @@ impl Display for FunctionLiteral {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CallExpression {
-    pub function: Box<ExpressionNode>,
-    pub arguments: Vec<ExpressionNode>,
+    pub function: Box<Expression>,
+    pub arguments: Vec<Expression>,
 }
 
 impl Display for CallExpression {

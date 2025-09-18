@@ -31,11 +31,9 @@ pub struct Parser {
     peek_token: token::Token,
     errors: Vec<String>,
 
-    prefix_parse_fns: HashMap<token::TokenType, fn(&mut Parser) -> Option<ast::ExpressionNode>>,
-    infix_parse_fns: HashMap<
-        token::TokenType,
-        fn(&mut Parser, ast::ExpressionNode) -> Option<ast::ExpressionNode>,
-    >,
+    prefix_parse_fns: HashMap<token::TokenType, fn(&mut Parser) -> Option<ast::Expression>>,
+    infix_parse_fns:
+        HashMap<token::TokenType, fn(&mut Parser, ast::Expression) -> Option<ast::Expression>>,
 }
 
 impl Parser {
@@ -97,12 +95,12 @@ impl Parser {
         self.errors.clone()
     }
 
-    fn parse_statement(&mut self) -> Option<ast::StatementNode> {
+    fn parse_statement(&mut self) -> Option<ast::Statement> {
         match self.cur_token.typ() {
             token::TokenType::LET => {
                 let stmt = self.parse_let_statement();
                 if let Some(let_stmt) = stmt {
-                    Some(ast::StatementNode::Let(let_stmt))
+                    Some(ast::Statement::Let(let_stmt))
                 } else {
                     None
                 }
@@ -110,7 +108,7 @@ impl Parser {
             token::TokenType::RETURN => {
                 let stmt = self.parse_return_statement();
                 if let Some(ret_stmt) = stmt {
-                    Some(ast::StatementNode::Return(ret_stmt))
+                    Some(ast::Statement::Return(ret_stmt))
                 } else {
                     None
                 }
@@ -119,7 +117,7 @@ impl Parser {
             _ => {
                 let stmt = self.parse_expression_statement();
                 if let Some(exp_stmt) = stmt {
-                    Some(ast::StatementNode::Expression(ast::ExpressionStatement {
+                    Some(ast::Statement::Expression(ast::ExpressionStatement {
                         expression: exp_stmt,
                     }))
                 } else {
@@ -144,29 +142,43 @@ impl Parser {
         // now self.cur_token is '=', skip it.
         self.next_token();
 
-        while !self.cur_token_is(token::TokenType::SEMICOLON) {
+        let exp = self.parse_expression(Precedence::Lowest);
+        if exp.is_none() {
+            return None;
+        }
+
+        if self.peek_token_is(token::TokenType::SEMICOLON) {
             self.next_token();
         }
 
         Some(ast::LetStatement {
             name: ident,
-            value: ast::ExpressionNode::Empty(),
+            value: exp.unwrap(),
         })
     }
 
     fn parse_return_statement(&mut self) -> Option<ast::ReturnStatement> {
         self.next_token();
 
-        while !self.cur_token_is(token::TokenType::SEMICOLON) {
+        let exp = self.parse_expression(Precedence::Lowest);
+        if exp.is_none() {
+            return None;
+        }
+
+        if self.peek_token_is(token::TokenType::SEMICOLON) {
             self.next_token();
         }
 
+        // while !self.cur_token_is(token::TokenType::SEMICOLON) {
+        //     self.next_token();
+        // }
+
         Some(ast::ReturnStatement {
-            expression: ast::ExpressionNode::Empty(),
+            expression: exp.unwrap(),
         })
     }
 
-    fn parse_expression_statement(&mut self) -> Option<ast::ExpressionNode> {
+    fn parse_expression_statement(&mut self) -> Option<ast::Expression> {
         if let Some(node) = self.parse_expression(Precedence::Lowest) {
             if self.peek_token_is(token::TokenType::SEMICOLON) {
                 self.next_token();
@@ -177,7 +189,7 @@ impl Parser {
         }
     }
 
-    fn parse_expression(&mut self, precedence: Precedence) -> Option<ast::ExpressionNode> {
+    fn parse_expression(&mut self, precedence: Precedence) -> Option<ast::Expression> {
         if let Some(prefix_fn) = self.prefix_parse_fns.get(&self.cur_token.typ()) {
             let left_exp = prefix_fn(self);
             if left_exp.is_none() {
@@ -206,17 +218,17 @@ impl Parser {
         }
     }
 
-    fn parse_identifier(&mut self) -> Option<ast::ExpressionNode> {
+    fn parse_identifier(&mut self) -> Option<ast::Expression> {
         if !self.cur_token_is(token::TokenType::IDENT) {
             return None;
         }
 
-        Some(ast::ExpressionNode::Identifier(ast::Identifier {
+        Some(ast::Expression::Identifier(ast::Identifier {
             value: self.cur_token.literal().clone(),
         }))
     }
 
-    fn parse_integer(&mut self) -> Option<ast::ExpressionNode> {
+    fn parse_integer(&mut self) -> Option<ast::Expression> {
         if !self.cur_token_is(token::TokenType::INT) {
             return None;
         }
@@ -231,22 +243,22 @@ impl Parser {
             return None;
         }
 
-        Some(ast::ExpressionNode::Integer(ast::IntegerLiteral {
+        Some(ast::Expression::Integer(ast::IntegerLiteral {
             token: self.cur_token.clone(),
             value: n.unwrap(),
         }))
     }
 
-    fn parse_boolean(&mut self) -> Option<ast::ExpressionNode> {
+    fn parse_boolean(&mut self) -> Option<ast::Expression> {
         let exp = if self.cur_token_is(token::TokenType::TRUE) {
             ast::Boolean { value: true }
         } else {
             ast::Boolean { value: false }
         };
-        Some(ast::ExpressionNode::Bool(exp))
+        Some(ast::Expression::Bool(exp))
     }
 
-    fn parse_prefix_expression(&mut self) -> Option<ast::ExpressionNode> {
+    fn parse_prefix_expression(&mut self) -> Option<ast::Expression> {
         let operator = self.cur_token.literal().clone();
         // consume the prefix operator, after call next_token
         // self.cur_token is the start of the right expression
@@ -254,7 +266,7 @@ impl Parser {
 
         if let Some(prefix_fn) = self.prefix_parse_fns.get(&self.cur_token.typ()) {
             if let Some(exp_node) = prefix_fn(self) {
-                Some(ast::ExpressionNode::Prefix(ast::PrefixExpression {
+                Some(ast::Expression::Prefix(ast::PrefixExpression {
                     operator,
                     right: Box::new(exp_node),
                 }))
@@ -267,7 +279,7 @@ impl Parser {
         }
     }
 
-    fn parse_infix_expression(&mut self, left: ast::ExpressionNode) -> Option<ast::ExpressionNode> {
+    fn parse_infix_expression(&mut self, left: ast::Expression) -> Option<ast::Expression> {
         self.next_token();
         let operator = self.cur_token.literal().clone();
         let precedence = Precedence::from_token(self.cur_token.typ());
@@ -276,7 +288,7 @@ impl Parser {
         self.next_token();
 
         if let Some(right) = self.parse_expression(precedence) {
-            Some(ast::ExpressionNode::Infix(ast::InfixExpression {
+            Some(ast::Expression::Infix(ast::InfixExpression {
                 left: Box::new(left),
                 operator,
                 right: Box::new(right),
@@ -286,7 +298,7 @@ impl Parser {
         }
     }
 
-    fn parse_grouped_expression(&mut self) -> Option<ast::ExpressionNode> {
+    fn parse_grouped_expression(&mut self) -> Option<ast::Expression> {
         self.next_token();
 
         if let Some(exp) = self.parse_expression(Precedence::Lowest) {
@@ -299,7 +311,7 @@ impl Parser {
         }
     }
 
-    fn parse_if_expression(&mut self) -> Option<ast::ExpressionNode> {
+    fn parse_if_expression(&mut self) -> Option<ast::Expression> {
         // cur_token is if, expect next token is '('
         if !self.expect_peek(token::TokenType::LPAREN) {
             return None;
@@ -342,10 +354,10 @@ impl Parser {
             if_exp.alternative = alternative;
         }
 
-        Some(ast::ExpressionNode::If(if_exp))
+        Some(ast::Expression::If(if_exp))
     }
 
-    fn parse_function_literal(&mut self) -> Option<ast::ExpressionNode> {
+    fn parse_function_literal(&mut self) -> Option<ast::Expression> {
         if !self.expect_peek(token::TokenType::LPAREN) {
             return None;
         }
@@ -364,23 +376,20 @@ impl Parser {
             return None;
         }
 
-        Some(ast::ExpressionNode::Fucntion(ast::FunctionLiteral {
+        Some(ast::Expression::Fucntion(ast::FunctionLiteral {
             parameters: parameters.unwrap(),
             body: body.unwrap(),
         }))
     }
 
-    fn parse_call_expression(
-        &mut self,
-        function: ast::ExpressionNode,
-    ) -> Option<ast::ExpressionNode> {
+    fn parse_call_expression(&mut self, function: ast::Expression) -> Option<ast::Expression> {
         self.next_token();
 
         let args = self.parse_call_arguments();
         if args.is_none() {
             return None;
         }
-        Some(ast::ExpressionNode::Call(ast::CallExpression {
+        Some(ast::Expression::Call(ast::CallExpression {
             function: Box::new(function),
             arguments: args.unwrap(),
         }))
@@ -438,7 +447,7 @@ impl Parser {
         Some(identifiers)
     }
 
-    fn parse_call_arguments(&mut self) -> Option<Vec<ast::ExpressionNode>> {
+    fn parse_call_arguments(&mut self) -> Option<Vec<ast::Expression>> {
         let mut args = vec![];
 
         if self.peek_token_is(token::TokenType::RPAREN) {
@@ -513,7 +522,7 @@ impl Parser {
     fn register_prefix_fn(
         &mut self,
         typ: token::TokenType,
-        f: fn(&mut Parser) -> Option<ast::ExpressionNode>,
+        f: fn(&mut Parser) -> Option<ast::Expression>,
     ) {
         self.prefix_parse_fns.insert(typ, f);
     }
@@ -521,7 +530,7 @@ impl Parser {
     fn register_infix_fn(
         &mut self,
         typ: token::TokenType,
-        f: fn(&mut Parser, ast::ExpressionNode) -> Option<ast::ExpressionNode>,
+        f: fn(&mut Parser, ast::Expression) -> Option<ast::Expression>,
     ) {
         self.infix_parse_fns.insert(typ, f);
     }
@@ -566,7 +575,7 @@ mod tests {
             //     input
             // );
             match &program.statements[0] {
-                ast::StatementNode::Let(stmt) => {
+                ast::Statement::Let(stmt) => {
                     test_let_statement(stmt, expected_identifier, expected_value)
                 }
                 _ => {
@@ -591,7 +600,7 @@ mod tests {
 
             for stmt in program.statements {
                 match &stmt {
-                    ast::StatementNode::Return(ret_stmt) => {
+                    ast::Statement::Return(ret_stmt) => {
                         test_return_statement(ret_stmt);
                     }
                     _ => panic!("unexpected type"),
@@ -603,11 +612,11 @@ mod tests {
     #[test]
     fn test_string() {
         let program = ast::Program {
-            statements: vec![ast::StatementNode::Let(ast::LetStatement {
+            statements: vec![ast::Statement::Let(ast::LetStatement {
                 name: ast::Identifier {
                     value: "my_var".to_string(),
                 },
-                value: ast::ExpressionNode::Identifier(ast::Identifier {
+                value: ast::Expression::Identifier(ast::Identifier {
                     value: "another_var".to_string(),
                 }),
             })],
@@ -629,8 +638,8 @@ mod tests {
 
         assert_eq!(
             program.statements[0],
-            ast::StatementNode::Expression(ast::ExpressionStatement {
-                expression: ast::ExpressionNode::Identifier(ast::Identifier {
+            ast::Statement::Expression(ast::ExpressionStatement {
+                expression: ast::Expression::Identifier(ast::Identifier {
                     value: "foobar".to_string(),
                 })
             })
@@ -650,8 +659,8 @@ mod tests {
 
         assert_eq!(
             program.statements[0],
-            ast::StatementNode::Expression(ast::ExpressionStatement {
-                expression: ast::ExpressionNode::Integer(ast::IntegerLiteral {
+            ast::Statement::Expression(ast::ExpressionStatement {
+                expression: ast::Expression::Integer(ast::IntegerLiteral {
                     token: token::Token::new(token::TokenType::INT, "123".to_string()),
                     value: 123,
                 })
@@ -676,10 +685,10 @@ mod tests {
 
             assert_eq!(
                 program.statements[0],
-                ast::StatementNode::Expression(ast::ExpressionStatement {
-                    expression: ast::ExpressionNode::Prefix(ast::PrefixExpression {
+                ast::Statement::Expression(ast::ExpressionStatement {
+                    expression: ast::Expression::Prefix(ast::PrefixExpression {
                         operator,
-                        right: Box::new(ast::ExpressionNode::Integer(ast::IntegerLiteral {
+                        right: Box::new(ast::Expression::Integer(ast::IntegerLiteral {
                             token: token::Token::new(token::TokenType::INT, val.to_string()),
                             value: val,
                         }))
@@ -706,10 +715,10 @@ mod tests {
 
             assert_eq!(
                 program.statements[0],
-                ast::StatementNode::Expression(ast::ExpressionStatement {
-                    expression: ast::ExpressionNode::Prefix(ast::PrefixExpression {
+                ast::Statement::Expression(ast::ExpressionStatement {
+                    expression: ast::Expression::Prefix(ast::PrefixExpression {
                         operator,
-                        right: Box::new(ast::ExpressionNode::Bool(ast::Boolean { value: val }))
+                        right: Box::new(ast::Expression::Bool(ast::Boolean { value: val }))
                     })
                 })
             )
@@ -737,14 +746,14 @@ mod tests {
 
             assert_eq!(
                 program.statements[0],
-                ast::StatementNode::Expression(ast::ExpressionStatement {
-                    expression: ast::ExpressionNode::Infix(ast::InfixExpression {
-                        left: Box::new(ast::ExpressionNode::Integer(ast::IntegerLiteral {
+                ast::Statement::Expression(ast::ExpressionStatement {
+                    expression: ast::Expression::Infix(ast::InfixExpression {
+                        left: Box::new(ast::Expression::Integer(ast::IntegerLiteral {
                             token: token::Token::new(token::TokenType::INT, left_val.to_string()),
                             value: left_val as i64,
                         })),
                         operator: operator.to_string(),
-                        right: Box::new(ast::ExpressionNode::Integer(ast::IntegerLiteral {
+                        right: Box::new(ast::Expression::Integer(ast::IntegerLiteral {
                             token: token::Token::new(token::TokenType::INT, right_val.to_string()),
                             value: right_val as i64,
                         }))
@@ -821,23 +830,23 @@ mod tests {
 
         assert_eq!(program.statements.len(), 1);
         // Check pretty-printed output (single parens, trailing blank line from block)
-        assert_eq!(program.to_string(), "if (x < y) {\nx\n\n}");
+        assert_eq!(program.to_string(), "if (x < y) {\nx\n}");
 
         // Check AST shape
-        let expected = ast::StatementNode::Expression(ast::ExpressionStatement {
-            expression: ast::ExpressionNode::If(ast::IfExpression {
-                condition: Box::new(ast::ExpressionNode::Infix(ast::InfixExpression {
-                    left: Box::new(ast::ExpressionNode::Identifier(ast::Identifier {
+        let expected = ast::Statement::Expression(ast::ExpressionStatement {
+            expression: ast::Expression::If(ast::IfExpression {
+                condition: Box::new(ast::Expression::Infix(ast::InfixExpression {
+                    left: Box::new(ast::Expression::Identifier(ast::Identifier {
                         value: "x".to_string(),
                     })),
                     operator: "<".to_string(),
-                    right: Box::new(ast::ExpressionNode::Identifier(ast::Identifier {
+                    right: Box::new(ast::Expression::Identifier(ast::Identifier {
                         value: "y".to_string(),
                     })),
                 })),
                 consequence: ast::BlockStatement {
-                    statements: vec![ast::StatementNode::Expression(ast::ExpressionStatement {
-                        expression: ast::ExpressionNode::Identifier(ast::Identifier {
+                    statements: vec![ast::Statement::Expression(ast::ExpressionStatement {
+                        expression: ast::Expression::Identifier(ast::Identifier {
                             value: "x".to_string(),
                         }),
                     })],
@@ -859,7 +868,7 @@ mod tests {
 
         assert_eq!(program.statements.len(), 1);
         // Pretty-print should include a trailing blank line from BlockStatement and FunctionLiteral
-        assert_eq!(program.to_string(), "fn(x, y) {\n(x + y)\n\n}");
+        assert_eq!(program.to_string(), "fn(x, y) {\n(x + y)\n}");
     }
 
     #[test]
