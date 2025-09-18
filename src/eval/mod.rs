@@ -318,10 +318,10 @@ mod tests {
     #[test]
     fn test_return_statement() {
         let tests = vec![
-            // ("return 10;", object::Object::Integer(10)),
-            // ("return true;", object::Object::Boolean(true)),
-            // ("return 2 * 5; 0;", object::Object::Integer(10)),
-            // ("1; return 2 * 5; 0", object::Object::Integer(10)),
+            ("return 10;", object::Object::Integer(10)),
+            ("return true;", object::Object::Boolean(true)),
+            ("return 2 * 5; 0;", object::Object::Integer(10)),
+            ("1; return 2 * 5; 0", object::Object::Integer(10)),
             (
                 "if (1 > 0) { if (1 > 0) { return 10; } return 1;}",
                 object::Object::Integer(10),
@@ -410,7 +410,7 @@ mod tests {
     fn test_eval_helper(input: &str) -> object::Object {
         let lexer = lexer::Lexer::new(input);
         let mut parser = parser::Parser::new(lexer);
-        let program = parser.parse_program();
+        let program = parser.parse_program().unwrap();
 
         let mut env = object::Environment::new(None);
 

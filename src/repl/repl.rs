@@ -24,15 +24,12 @@ pub fn start<R: BufRead, W: Write>(reader: &mut R, writer: &mut W) {
                 let lexer = Lexer::new(input);
                 let mut parser = Parser::new(lexer);
                 let program = parser.parse_program();
-                if parser.has_errors() {
-                    let error_msgs = parser.parse_error_msg();
-                    for err_msg in error_msgs {
-                        eprintln!("123 {}", err_msg);
-                    }
+                if let Err(err) = program {
+                    writeln!(writer, "parse error: {}", err);
                     continue;
                 }
 
-                let res = eval::eval(program, &mut env);
+                let res = eval::eval(program.unwrap(), &mut env);
 
                 writeln!(writer, "{}", res).unwrap();
                 writer.flush().unwrap();
