@@ -106,6 +106,14 @@ fn builtin_append(args: &mut [object::Object]) -> Result<object::Object, MonkeyE
     }
 }
 
+fn builtin_puts(args: &mut [object::Object]) -> Result<object::Object, MonkeyError> {
+    for arg in args {
+        println!("{}", arg);
+    }
+
+    Ok(object::Object::Null)
+}
+
 lazy_static! {
     static ref BUILTIN_FUNCTIONS: HashMap<&'static str, object::BuiltinFunc> = {
         let mut m: HashMap<&'static str, object::BuiltinFunc> = HashMap::new();
@@ -113,6 +121,7 @@ lazy_static! {
         m.insert("first", builtin_first);
         m.insert("last", builtin_last);
         m.insert("append", builtin_append);
+        m.insert("puts", builtin_puts);
         m
     };
 }
