@@ -7,22 +7,77 @@ use lazy_static::lazy_static;
 
 fn builtin_len(args: &[object::Object]) -> Result<object::Object, MonkeyError> {
     if args.len() != 1 {
-        Err(MonkeyError::RuntimeError {
+        return Err(MonkeyError::RuntimeError {
             message: format!(
                 "builtin function 'len' expected 1 argument, got {}",
                 args.len()
             ),
-        })
-    } else {
-        match &args[0] {
-            object::Object::String(s) => Ok(object::Object::Integer(s.len() as i64)),
-            other => Err(MonkeyError::RuntimeError {
-                message: format!(
-                    "builtin function 'len' only support String object, got {}",
-                    other.type_of()
-                ),
-            }),
+        });
+    }
+
+    match &args[0] {
+        object::Object::String(s) => Ok(object::Object::Integer(s.len() as i64)),
+        object::Object::Array(arr) => Ok(object::Object::Integer(arr.len() as i64)),
+        other => Err(MonkeyError::RuntimeError {
+            message: format!(
+                "builtin function 'len' only support String object, got {}",
+                other.type_of()
+            ),
+        }),
+    }
+}
+
+fn builtin_first(args: &[object::Object]) -> Result<object::Object, MonkeyError> {
+    if args.len() != 1 {
+        return Err(MonkeyError::RuntimeError {
+            message: format!(
+                "builtin function 'first' expected 1 argument, got {}",
+                args.len()
+            ),
+        });
+    }
+
+    match &args[0] {
+        object::Object::Array(arr) => {
+            if arr.len() == 0 {
+                Ok(object::Object::Null)
+            } else {
+                Ok(arr[0].clone())
+            }
         }
+        other => Err(MonkeyError::RuntimeError {
+            message: format!(
+                "builtin function 'first' only support Array object, got {}",
+                other.type_of()
+            ),
+        }),
+    }
+}
+
+fn builtin_last(args: &[object::Object]) -> Result<object::Object, MonkeyError> {
+    if args.len() != 1 {
+        return Err(MonkeyError::RuntimeError {
+            message: format!(
+                "builtin function 'last' expected 1 argument, got {}",
+                args.len()
+            ),
+        });
+    }
+
+    match &args[0] {
+        object::Object::Array(arr) => {
+            if arr.len() == 0 {
+                Ok(object::Object::Null)
+            } else {
+                Ok(arr[arr.len() - 1].clone())
+            }
+        }
+        other => Err(MonkeyError::RuntimeError {
+            message: format!(
+                "builtin function 'last' only support Array object, got {}",
+                other.type_of()
+            ),
+        }),
     }
 }
 
@@ -30,7 +85,8 @@ lazy_static! {
     static ref BUILTIN_FUNCTIONS: HashMap<&'static str, object::BuiltinFunc> = {
         let mut m: HashMap<&'static str, object::BuiltinFunc> = HashMap::new();
         m.insert("len", builtin_len);
-
+        m.insert("first", builtin_first);
+        m.insert("last", builtin_last);
         m
     };
 }
@@ -600,6 +656,7 @@ mod tests {
     #[test]
     fn test_builtin_function() {
         let tests = vec![
+            // len()
             (r#"len("")"#, Ok(object::Object::Integer(0))),
             (r#"len("hello")"#, Ok(object::Object::Integer(5))),
             (
@@ -614,6 +671,53 @@ mod tests {
                 Err(MonkeyError::RuntimeError {
                     message: "builtin function 'len' only support String object, got Integer"
                         .to_string(),
+                }),
+            ),
+            (r#"len([])"#, Ok(object::Object::Integer(0))),
+            (r#"len([1, 2, 3])"#, Ok(object::Object::Integer(3))),
+            (r#"len([1, 2, 3, "hello"])"#, Ok(object::Object::Integer(4))),
+            // first()
+            (r#"first([])"#, Ok(object::Object::Null)),
+            (r#"first([1, 2, 3])"#, Ok(object::Object::Integer(1))),
+            (
+                r#"first(["hello", 2, 3])"#,
+                Ok(object::Object::String("hello".to_string())),
+            ),
+            (
+                r#"first(123)"#,
+                Err(MonkeyError::RuntimeError {
+                    message: format!(
+                        "builtin function 'first' only support Array object, got {}",
+                        object::ObjectType::Integer
+                    ),
+                }),
+            ),
+            (
+                r#"first(123, "hello")"#,
+                Err(MonkeyError::RuntimeError {
+                    message: format!("builtin function 'first' expected 1 argument, got {}", 2),
+                }),
+            ),
+            // last()
+            (r#"last([])"#, Ok(object::Object::Null)),
+            (r#"last([1, 2, 3])"#, Ok(object::Object::Integer(3))),
+            (
+                r#"last(["hello", 2, 3, "world"])"#,
+                Ok(object::Object::String("world".to_string())),
+            ),
+            (
+                r#"last(123)"#,
+                Err(MonkeyError::RuntimeError {
+                    message: format!(
+                        "builtin function 'last' only support Array object, got {}",
+                        object::ObjectType::Integer
+                    ),
+                }),
+            ),
+            (
+                r#"last(123, "hello")"#,
+                Err(MonkeyError::RuntimeError {
+                    message: format!("builtin function 'last' expected 1 argument, got {}", 2),
                 }),
             ),
         ];
@@ -662,7 +766,10 @@ mod tests {
         let tests2 = vec![
             (r#"[1, "hello", 3][1]"#, "hello"),
             (r#"let arr = [1, "hello", 3]; arr[1]"#, "hello"),
-            (r#"let arr = [1, "hello", 3]; let i = arr[0]; arr[i]"#, "hello"),
+            (
+                r#"let arr = [1, "hello", 3]; let i = arr[0]; arr[i]"#,
+                "hello",
+            ),
         ];
 
         for (input, expected) in tests2 {
