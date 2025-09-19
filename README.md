@@ -1,24 +1,52 @@
-# RMonkey Language Interpreter
+# Monkey Language Interpreter
 
-A Rust implementation of the Monkey programming language interpreter, following the "Writing An Interpreter In Go" book by Thorsten Ball.
+A **Rust** implementation of the Monkey programming language interpreter, following the "Writing An Interpreter In Go" book by Thorsten Ball.
 
 ## Overview
 
-RMonkey is a toy programming language interpreter written in Rust. It features a lexer, parser, and evaluator that can process Monkey language code. The project serves as an educational exercise to understand how programming language interpreters work.
+Monkey is a toy programming language interpreter written in Rust. It features a lexer, parser, and evaluator that can process Monkey language code. The project serves as an educational exercise to understand how programming language interpreters work.
+
+There is a **Go** implementation of the Monkey language interpreter [here](https://github.com/rand0m42195/monkey-go).
 
 ## Features
 
 ### ✅ Implemented
 - **Lexer**: Tokenizes Monkey language source code into tokens
+- **Parser**: Complete Pratt parser with precedence handling
+- **AST Generation**: Full Abstract Syntax Tree construction
+- **Evaluator**: Complete expression and statement evaluation engine
+- **Environment**: Variable scope management with closure support
 - **REPL**: Interactive Read-Eval-Print Loop with customizable I/O
-- **Token Types**: Support for identifiers, integers, operators, keywords, and delimiters
-- **Comprehensive Testing**: Unit tests for lexer functionality
+- **Comprehensive Testing**: Unit tests for lexer, parser, and evaluator functionality
 
-### Supported Token Types
-- **Identifiers**: `let`, `fn`, `if`, `else`, `return`, `true`, `false`
-- **Literals**: Integer numbers, identifiers
-- **Operators**: `+`, `-`, `*`, `/`, `==`, `!=`, `<`, `>`, `!`
-- **Delimiters**: `(`, `)`, `{`, `}`, `[`, `]`, `;`, `,`, `:`
+### Supported Language Features
+- **Expressions**:
+  - Integer literals (`123`)
+  - Boolean literals (`true`, `false`)
+  - Identifiers (`x`, `myVar`)
+  - Prefix expressions (`-5`, `!true`)
+  - Infix expressions (`5 + 3`, `x == y`, `a < b`)
+  - Grouped expressions (`(1 + 2) * 3`)
+  - Function literals (`fn(x, y) { x + y }`)
+  - Function calls (`add(1, 2)`)
+  - If expressions (`if (x < y) { x } else { y }`)
+
+- **Statements**:
+  - Let statements (`let x = 5;`)
+  - Return statements (`return 42;`)
+  - Expression statements (`x + y;`)
+  - Block statements (`{ let x = 1; x + 2; }`)
+
+- **Operators**:
+  - Arithmetic: `+`, `-`, `*`, `/`
+  - Comparison: `==`, `!=`, `<`, `>`
+  - Logical: `!`
+  - Assignment: `=`
+
+- **Control Flow**:
+  - If/else expressions with proper precedence
+  - Function definitions and calls
+  - Block scoping
 
 ## Project Structure
 
@@ -30,6 +58,17 @@ src/
 ├── token/           # Token definitions
 │   ├── token.rs     # Token and TokenType definitions
 │   └── mod.rs       # Module exports
+├── parser/          # Syntax analysis
+│   ├── parser.rs    # Pratt parser implementation
+│   └── mod.rs       # Module exports
+├── ast/             # Abstract Syntax Tree
+│   ├── ast.rs       # AST node definitions
+│   └── mod.rs       # Module exports
+├── eval/            # Evaluation engine
+│   ├── eval.rs      # Main evaluator implementation
+│   └── mod.rs       # Module exports
+├── object/          # Object system and environment
+│   ├── mod.rs       # Object types and environment management
 ├── repl/            # Read-Eval-Print Loop
 │   ├── repl.rs      # REPL implementation
 │   └── mod.rs       # Module exports
@@ -67,52 +106,67 @@ $ cargo run
 Hello! This is the Monkey programming language!
 Feel free to type in commands
 >> let x = 5;
-Token { typ: LET, literal: "let" }
-Token { typ: IDENT, literal: "x" }
-Token { typ: ASSIGN, literal: "=" }
-Token { typ: INT, literal: "5" }
-Token { typ: SEMICOLON, literal: ";" }
-Token { typ: EOF, literal: "" }
+null
+>> let y = 10;
+null
+>> x + y * 2;
+25
+>> let add = fn(a, b) { a + b; };
+null
+>> add(5, 3);
+8
+>> if (x > y) { x } else { y };
+10
+>> let multiply = fn(x, y) { x * y; };
+null
+>> multiply(add(2, 3), 4);
+20
+>> let isEven = fn(n) { n % 2 == 0; };
+null
+>> isEven(4);
+true
+>> isEven(5);
+false
 ```
 
 ## Development Roadmap
 
-### Phase 1: Core Language Features
-- [ ] **Parser**: Implement recursive descent parser for AST generation
-  - [ ] Expression parsing (arithmetic, comparison, logical)
-  - [ ] Statement parsing (let, return, expression statements)
-  - [ ] Block statement parsing
-  - [ ] Function declaration parsing
-- [ ] **AST Nodes**: Define Abstract Syntax Tree node types
-  - [ ] Expression nodes (identifiers, literals, infix, prefix, call)
-  - [ ] Statement nodes (let, return, expression, block)
-  - [ ] Program root node
+### Phase 1: Core Language Features ✅ COMPLETED
+- [x] **Parser**: Implement Pratt parser for AST generation
+  - [x] Expression parsing (arithmetic, comparison, logical)
+  - [x] Statement parsing (let, return, expression statements)
+  - [x] Block statement parsing
+  - [x] Function declaration parsing
+- [x] **AST Nodes**: Define Abstract Syntax Tree node types
+  - [x] Expression nodes (identifiers, literals, infix, prefix, call, if, function)
+  - [x] Statement nodes (let, return, expression, block)
+  - [x] Program root node
 
-### Phase 2: Evaluation Engine
-- [ ] **Evaluator**: Implement expression and statement evaluation
-  - [ ] Integer arithmetic operations
-  - [ ] Boolean operations and comparisons
-  - [ ] Variable binding and lookup
-  - [ ] Function definition and calling
-  - [ ] Conditional evaluation (if/else)
-- [ ] **Environment**: Variable scope management
-  - [ ] Local and global variable storage
-  - [ ] Function closure support
+### Phase 2: Evaluation Engine ✅ COMPLETED
+- [x] **Evaluator**: Implement expression and statement evaluation
+  - [x] Integer arithmetic operations
+  - [x] Boolean operations and comparisons
+  - [x] Variable binding and lookup
+  - [x] Function definition and calling
+  - [x] Conditional evaluation (if/else)
+- [x] **Environment**: Variable scope management
+  - [x] Local and global variable storage
+  - [x] Function closure support
 
 ### Phase 3: Advanced Features
-- [ ] **Built-in Functions**: Implement standard library
-  - [ ] `len()` for string and array length
-  - [ ] `first()`, `last()`, `rest()` for array operations
-  - [ ] `push()` for array manipulation
-  - [ ] `puts()` for output
-- [ ] **Data Types**: Extended type system
-  - [ ] String literals and operations
-  - [ ] Array literals and indexing
-  - [ ] Hash/Map data structures
-- [ ] **Error Handling**: Comprehensive error reporting
-  - [ ] Syntax error messages with line/column info
-  - [ ] Runtime error handling
-  - [ ] Type error checking
+- [x] **Built-in Functions**: Implement standard library
+  - [x] `len()` for string and array length
+  - [x] `first()`, `last()` for array operations
+  - [x] `append()` for array manipulation
+  - [x] `puts()` for output
+- [x] **Data Types**: Extended type system
+  - [x] String literals and operations
+  - [x] Array literals and indexing
+  - [x] Hash/Map data structures
+- [x] **Error Handling**: Comprehensive error reporting
+  - [x] Syntax error messages with line/column info
+  - [x] Runtime error handling
+  - [x] Type error checking
 
 ### Phase 4: Language Enhancements
 - [ ] **Control Flow**: Advanced control structures
@@ -154,6 +208,8 @@ cargo test -- --nocapture
 
 # Run specific test module
 cargo test lexer::tests
+cargo test parser::tests
+cargo test eval::tests
 ```
 
 ## Contributing

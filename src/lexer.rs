@@ -58,6 +58,12 @@ impl Lexer {
             '[' => tok = Token::new(TokenType::LBRACKET, "[".to_string()),
             ']' => tok = Token::new(TokenType::RBRACKET, "]".to_string()),
             ':' => tok = Token::new(TokenType::COLON, ":".to_string()),
+            '"' => {
+                tok = {
+                    let s = self.read_string();
+                    Token::new(TokenType::STRING, s)
+                }
+            }
             '\0' => tok = Token::new(TokenType::EOF, "".to_string()),
             _c if Self::is_letter(self.ch) => {
                 let identifier = self.read_identifier();
@@ -107,6 +113,16 @@ impl Lexer {
         }
     }
 
+    fn read_string(&mut self) -> String {
+        self.read_char();
+        let start = self.position;
+        while self.ch != '\0' && self.ch != '"' {
+            self.read_char();
+        }
+
+        self.input[start..self.position].iter().collect()
+    }
+
     fn read_char(&mut self) {
         if self.read_position >= self.input.len() {
             self.ch = '\0';
@@ -152,7 +168,7 @@ mod tests {
     #[test]
     fn test_next_token_2() {
         // dbg!("test_next_token2");
-        let input = "let five = 5;
+        let input = r#"let five = 5;
 let ten = 10;
 let add = fn(x, y) {
 x + y;
@@ -170,7 +186,13 @@ return false;
 
 10 == 10;
 10 != 9;
-";
+
+"foobar"
+"foo bar"
+[1, 2];
+
+{"foo": "bar"}
+"#;
         let expected_tokens = vec![
             Token::new(TokenType::LET, "let".to_string()),
             Token::new(TokenType::IDENT, "five".to_string()),
@@ -245,6 +267,24 @@ return false;
             Token::new(TokenType::NotEq, "!=".to_string()),
             Token::new(TokenType::INT, "9".to_string()),
             Token::new(TokenType::SEMICOLON, ";".to_string()),
+            Token::new(TokenType::STRING, "foobar".to_string()),
+            Token::new(TokenType::STRING, "foo bar".to_string()),
+
+            // [1, 2];
+            Token::new(TokenType::LBRACKET, "[".to_string()),
+            Token::new(TokenType::INT, "1".to_string()),
+            Token::new(TokenType::COMMA, ",".to_string()),
+            Token::new(TokenType::INT, "2".to_string()),
+            Token::new(TokenType::RBRACKET, "]".to_string()),
+            Token::new(TokenType::SEMICOLON, ";".to_string()),
+
+            // {"foo": "bar"}
+            Token::new(TokenType::LBRACE, "{".to_string()),
+            Token::new(TokenType::STRING, "foo".to_string()),
+            Token::new(TokenType::COLON, ":".to_string()),
+            Token::new(TokenType::STRING, "bar".to_string()),
+            Token::new(TokenType::RBRACE, "}".to_string()),
+
             Token::new(TokenType::EOF, "".to_string()),
         ];
         let mut lexer = Lexer::new(input);
@@ -253,6 +293,4 @@ return false;
             assert_eq!(tok, expected_token);
         }
     }
-
-
 }
