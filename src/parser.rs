@@ -108,7 +108,12 @@ impl Parser {
             value: self.cur_token.literal().clone(),
         };
 
+        println!(
+            "rand0m in let statment 1, ident = {}, cur_token: {:?}, next_token: {:?}",
+            ident, self.cur_token, self.peek_token
+        );
         self.expect_peek(token::TokenType::ASSIGN)?;
+        println!("rand0m in let statment 2");
 
         // now self.cur_token is '=', skip it.
         self.next_token();

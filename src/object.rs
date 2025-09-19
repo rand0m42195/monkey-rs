@@ -6,7 +6,7 @@ use std::rc::Rc;
 use crate::ast;
 use crate::errors::MonkeyError;
 
-pub type BuiltinFunc = fn(args: &[Object]) -> Result<Object, MonkeyError>;
+pub type BuiltinFunc = fn(args: &mut [Object]) -> Result<Object, MonkeyError>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Object {
