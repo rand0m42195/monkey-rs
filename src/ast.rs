@@ -31,12 +31,13 @@ pub enum Expression {
     Int(Integer),
     String(MString),
     Bool(Boolean),
-    Array(Array),
+    Array(ArrayLiteral),
     Prefix(PrefixExpression),
     Infix(InfixExpression),
     If(IfExpression),
     Fucntion(FunctionLiteral),
     Call(CallExpression),
+    Index(IndexExpression),
 }
 
 impl Display for Expression {
@@ -53,6 +54,7 @@ impl Display for Expression {
             Self::If(e) => write!(f, "{}", e),
             Self::Fucntion(e) => write!(f, "{}", e),
             Self::Call(e) => write!(f, "{}", e),
+            Self::Index(e) => write!(f, "{}", e),
         }
         // DO NOT USE this code, it will cause inifinite loop!
         // write!(f, "{}", self)
@@ -169,11 +171,11 @@ impl Display for Boolean {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Array {
+pub struct ArrayLiteral {
     pub elems: Vec<Expression>,
 }
 
-impl Display for Array {
+impl Display for ArrayLiteral {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = self
             .elems
@@ -279,5 +281,17 @@ impl Display for CallExpression {
             .collect::<Vec<_>>()
             .join(", ");
         write!(f, "{}({})", self.function, args)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IndexExpression {
+    pub left: Box<Expression>,
+    pub index: Box<Expression>,
+}
+
+impl Display for IndexExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}[{}]", self.left, self.index)
     }
 }

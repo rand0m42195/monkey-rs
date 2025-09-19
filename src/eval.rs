@@ -114,12 +114,13 @@ fn eval_expression(
         ast::Expression::Int(il) => eval_integer_literal(il),
         ast::Expression::String(s) => eval_string_literal(s),
         ast::Expression::Bool(boolean) => eval_boolean(boolean),
+        ast::Expression::Array(arr) => eval_array_literal(arr, env.clone()),
         ast::Expression::Prefix(prefix) => eval_prefix_expression(prefix, env.clone()),
         ast::Expression::Infix(infix) => eval_infix_expression(infix, env.clone()),
         ast::Expression::If(if_exp) => eval_if_expression(if_exp, env.clone()),
         ast::Expression::Fucntion(function) => eval_function_literal(function, env.clone()),
         ast::Expression::Call(call) => eval_call_expression(call, env.clone()),
-        _ => panic!("unimplemented"),
+        ast::Expression::Index(ie) => eval_index_expression(ie, env.clone()),
     }
 }
 
@@ -150,6 +151,18 @@ fn eval_string_literal(s: ast::MString) -> Result<object::Object, MonkeyError> {
 
 fn eval_boolean(b: ast::Boolean) -> Result<object::Object, MonkeyError> {
     Ok(object::Object::Boolean(b.value))
+}
+
+fn eval_array_literal(
+    arr: ast::ArrayLiteral,
+    env: Rc<RefCell<object::Environment>>,
+) -> Result<object::Object, MonkeyError> {
+    let mut objs = vec![];
+    for exp in arr.elems {
+        objs.push(eval_expression(exp, env.clone())?);
+    }
+
+    Ok(object::Object::Array(objs))
 }
 
 fn eval_prefix_expression(
@@ -272,6 +285,40 @@ fn eval_call_expression(
     }
 
     apply_function(func_obj, arg_objs)
+}
+
+fn eval_index_expression(
+    ie: ast::IndexExpression,
+    env: Rc<RefCell<object::Environment>>,
+) -> Result<object::Object, MonkeyError> {
+    let arr = match eval_expression(*ie.left, env.clone())? {
+        object::Object::Array(a) => a,
+        obj => {
+            return Err(MonkeyError::RuntimeError {
+                message: format!("expected Array object, got {}", obj.type_of()),
+            });
+        }
+    };
+
+    let index = match eval_expression(*ie.index, env.clone())? {
+        object::Object::Integer(i) => i as usize,
+        obj => {
+            return Err(MonkeyError::RuntimeError {
+                message: format!(
+                    "expected Integer object as Array index, got {}",
+                    obj.type_of()
+                ),
+            });
+        }
+    };
+
+    if arr.len() <= index {
+        Err(MonkeyError::RuntimeError {
+            message: format!("Outbound, Array len is {}, index is {}", arr.len(), index),
+        })
+    } else {
+        Ok(arr[index].clone())
+    }
 }
 
 fn apply_function(
@@ -578,6 +625,49 @@ mod tests {
             let env = Rc::new(RefCell::new(object::Environment::new(None)));
 
             assert_eq!(eval(program, env), expected);
+        }
+    }
+
+    #[test]
+    fn test_array_literal() {
+        let input1 = "[1, 2 + 2, 3 * 3]";
+        let input2 = "[1, 4, 9]";
+        let obj1 = test_eval_helper(input1);
+        let obj2 = test_eval_helper(input2);
+
+        assert_eq!(obj1, obj2);
+    }
+
+    #[test]
+    fn test_index() {
+        let tests1 = vec![
+            ("[1, 2, 3][0]", 1),
+            ("[1, 2, 3][1]", 2),
+            ("[1, 2, 3][2]", 3),
+            ("let i = 0; [1, 2, 3][i]", 1),
+            ("let arr = [1, 2, 3]; arr[0]", 1),
+            ("let arr = [1, 2, 3]; let i = 1; arr[i]", 2),
+            ("let arr = [1, 2, 3]; let i = arr[0]; arr[i]", 2),
+            (r#"[1, "hello", 3][0]"#, 1),
+            (r#"let arr = [1, "hello", 3]; arr[0]"#, 1),
+            (r#"let arr = [1, "hello", 3]; let i = 0; arr[i]"#, 1),
+            (r#"let arr = [2, "hello", 3]; let i = arr[0]; arr[i]"#, 3),
+        ];
+
+        for (input, expected) in tests1 {
+            let obj = test_eval_helper(input);
+            test_integer_object(obj, expected);
+        }
+
+        let tests2 = vec![
+            (r#"[1, "hello", 3][1]"#, "hello"),
+            (r#"let arr = [1, "hello", 3]; arr[1]"#, "hello"),
+            (r#"let arr = [1, "hello", 3]; let i = arr[0]; arr[i]"#, "hello"),
+        ];
+
+        for (input, expected) in tests2 {
+            let obj = test_eval_helper(input);
+            test_string_object(obj, expected);
         }
     }
 

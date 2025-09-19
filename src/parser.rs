@@ -10,6 +10,7 @@ pub enum Precedence {
     Product,     // * /
     Prefix,      // -X !X
     Call,        // fn(x)
+    Index,       // arr[1]
 }
 
 impl Precedence {
@@ -20,6 +21,7 @@ impl Precedence {
             token::TokenType::PLUS | token::TokenType::MINUS => Precedence::Sum,
             token::TokenType::ASTERISK | token::TokenType::SLASH => Precedence::Product,
             token::TokenType::LPAREN => Precedence::Call,
+            token::TokenType::LBRACKET => Precedence::Index,
             _ => Precedence::Lowest,
         }
     }
@@ -69,6 +71,7 @@ impl Parser {
         parser.register_infix_fn(token::TokenType::LT, Self::parse_infix_expression);
         parser.register_infix_fn(token::TokenType::GT, Self::parse_infix_expression);
         parser.register_infix_fn(token::TokenType::LPAREN, Self::parse_call_expression);
+        parser.register_infix_fn(token::TokenType::LBRACKET, Self::parse_index_expression);
 
         parser.next_token();
         parser.next_token();
@@ -217,7 +220,7 @@ impl Parser {
 
     fn parse_array(&mut self) -> Result<ast::Expression, MonkeyError> {
         let exps = self.parse_expressions(token::TokenType::RBRACKET)?;
-        Ok(ast::Expression::Array(ast::Array { elems: exps }))
+        Ok(ast::Expression::Array(ast::ArrayLiteral { elems: exps }))
     }
 
     fn parse_boolean(&mut self) -> Result<ast::Expression, MonkeyError> {
@@ -389,6 +392,23 @@ impl Parser {
         Ok(exps)
     }
 
+    fn parse_index_expression(
+        &mut self,
+        left: ast::Expression,
+    ) -> Result<ast::Expression, MonkeyError> {
+        self.next_token(); // drive cur_token to '['
+        self.next_token(); // skip '['
+
+        let index = self.parse_expression(Precedence::Lowest)?;
+
+        self.expect_peek(token::TokenType::RBRACKET)?;
+
+        Ok(ast::Expression::Index(ast::IndexExpression {
+            left: Box::new(left),
+            index: Box::new(index),
+        }))
+    }
+
     fn parse_expressions(
         &mut self,
         end: token::TokenType,
@@ -463,7 +483,7 @@ impl Parser {
 mod tests {
 
     use super::*;
-    use crate::ast::{self, Program};
+    use crate::ast::{self, Identifier, Program};
 
     #[test]
     fn test_parse_program() {
@@ -484,12 +504,6 @@ mod tests {
                 program.statements.len()
             );
 
-            // let stmt = &program.statements[0];
-            // assert!(
-            //     test_let_statement(stmt.as_ref(), expected_identifier, expected_value),
-            //     "test_let_statement failed for input: {}",
-            //     input
-            // );
             match &program.statements[0] {
                 ast::Statement::Let(stmt) => {
                     test_let_statement(stmt, expected_identifier, expected_value)
@@ -809,7 +823,7 @@ mod tests {
         let input = "[1, 2 * 2, 3 + 3]";
         let expected = ast::Program {
             statements: vec![ast::Statement::Expression(ast::ExpressionStatement {
-                expression: ast::Expression::Array(ast::Array {
+                expression: ast::Expression::Array(ast::ArrayLiteral {
                     elems: vec![
                         ast::Expression::Int(ast::Integer::new(1)),
                         ast::Expression::Infix(ast::InfixExpression {
@@ -823,6 +837,28 @@ mod tests {
                             right: Box::new(ast::Expression::Int(ast::Integer::new(3))),
                         }),
                     ],
+                }),
+            })],
+        };
+        let program = parse_program(input);
+
+        assert_eq!(program, expected);
+    }
+
+    #[test]
+    fn test_array_index() {
+        let input = "arr[1 + 1]";
+        let expected = ast::Program {
+            statements: vec![ast::Statement::Expression(ast::ExpressionStatement {
+                expression: ast::Expression::Index(ast::IndexExpression {
+                    left: Box::new(ast::Expression::Ident(Identifier {
+                        value: "arr".to_string(),
+                    })),
+                    index: Box::new(ast::Expression::Infix(ast::InfixExpression {
+                        left: Box::new(ast::Expression::Int(ast::Integer::new(1))),
+                        operator: "+".to_string(),
+                        right: Box::new(ast::Expression::Int(ast::Integer::new(1))),
+                    })),
                 }),
             })],
         };

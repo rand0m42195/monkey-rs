@@ -14,6 +14,7 @@ pub enum Object {
     Integer(i64),
     String(String),
     Boolean(bool),
+    Array(Vec<Object>),
     Return(Box<Object>),
     Function(
         Vec<ast::Identifier>,
@@ -30,6 +31,14 @@ impl Display for Object {
             Self::Integer(n) => write!(f, "{}", n),
             Self::String(s) => write!(f, "{}", s),
             Self::Boolean(b) => write!(f, "{}", b),
+            Self::Array(a) => {
+                let s = a
+                    .iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                write!(f, "[{}]", s)
+            }
             Self::Return(r) => write!(f, "{}", r),
             Self::Function(params, block, _env) => {
                 let params = params
@@ -51,6 +60,7 @@ pub enum ObjectType {
     Integer,
     String,
     Boolean,
+    Array,
     Return,
     Function,
     BuiltinFunction,
@@ -63,6 +73,7 @@ impl Object {
             Self::Integer(_) => ObjectType::Integer,
             Self::String(_) => ObjectType::String,
             Self::Boolean(_) => ObjectType::Boolean,
+            Self::Array(_) => ObjectType::Array,
             Self::Return(_) => ObjectType::Return,
             Self::Function(_, _, _) => ObjectType::Function,
             Self::BuiltinFunction(_) => ObjectType::BuiltinFunction,
@@ -81,6 +92,7 @@ impl Display for ObjectType {
             Self::Integer => write!(f, "Integer"),
             Self::String => write!(f, "String"),
             Self::Boolean => write!(f, "Boolean"),
+            Self::Array => write!(f, "Array"),
             Self::Return => write!(f, "Return"),
             Self::Function => write!(f, "Function"),
             Self::BuiltinFunction => write!(f, "BuiltinFunction"),
