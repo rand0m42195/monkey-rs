@@ -154,19 +154,19 @@ false
   - [x] Function closure support
 
 ### Phase 3: Advanced Features
-- [ ] **Built-in Functions**: Implement standard library
-  - [ ] `len()` for string and array length
-  - [ ] `first()`, `last()`, `rest()` for array operations
-  - [ ] `push()` for array manipulation
-  - [ ] `puts()` for output
-- [ ] **Data Types**: Extended type system
-  - [ ] String literals and operations
-  - [ ] Array literals and indexing
-  - [ ] Hash/Map data structures
-- [ ] **Error Handling**: Comprehensive error reporting
-  - [ ] Syntax error messages with line/column info
-  - [ ] Runtime error handling
-  - [ ] Type error checking
+- [x] **Built-in Functions**: Implement standard library
+  - [x] `len()` for string and array length
+  - [x] `first()`, `last()` for array operations
+  - [x] `append()` for array manipulation
+  - [x] `puts()` for output
+- [x] **Data Types**: Extended type system
+  - [x] String literals and operations
+  - [x] Array literals and indexing
+  - [x] Hash/Map data structures
+- [x] **Error Handling**: Comprehensive error reporting
+  - [x] Syntax error messages with line/column info
+  - [x] Runtime error handling
+  - [x] Type error checking
 
 ### Phase 4: Language Enhancements
 - [ ] **Control Flow**: Advanced control structures
