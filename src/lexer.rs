@@ -190,6 +190,8 @@ return false;
 "foobar"
 "foo bar"
 [1, 2];
+
+{"foo": "bar"}
 "#;
         let expected_tokens = vec![
             Token::new(TokenType::LET, "let".to_string()),
@@ -267,12 +269,22 @@ return false;
             Token::new(TokenType::SEMICOLON, ";".to_string()),
             Token::new(TokenType::STRING, "foobar".to_string()),
             Token::new(TokenType::STRING, "foo bar".to_string()),
+
+            // [1, 2];
             Token::new(TokenType::LBRACKET, "[".to_string()),
             Token::new(TokenType::INT, "1".to_string()),
             Token::new(TokenType::COMMA, ",".to_string()),
             Token::new(TokenType::INT, "2".to_string()),
             Token::new(TokenType::RBRACKET, "]".to_string()),
             Token::new(TokenType::SEMICOLON, ";".to_string()),
+
+            // {"foo": "bar"}
+            Token::new(TokenType::LBRACE, "{".to_string()),
+            Token::new(TokenType::STRING, "foo".to_string()),
+            Token::new(TokenType::COLON, ":".to_string()),
+            Token::new(TokenType::STRING, "bar".to_string()),
+            Token::new(TokenType::RBRACE, "}".to_string()),
+
             Token::new(TokenType::EOF, "".to_string()),
         ];
         let mut lexer = Lexer::new(input);

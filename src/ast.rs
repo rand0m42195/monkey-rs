@@ -32,6 +32,7 @@ pub enum Expression {
     String(MString),
     Bool(Boolean),
     Array(ArrayLiteral),
+    Hash(HashLiteral),
     Prefix(PrefixExpression),
     Infix(InfixExpression),
     If(IfExpression),
@@ -49,6 +50,7 @@ impl Display for Expression {
             Self::String(e) => write!(f, "{}", e),
             Self::Bool(e) => write!(f, "{}", e),
             Self::Array(e) => write!(f, "{}", e),
+            Self::Hash(e) => write!(f, "{}", e),
             Self::Prefix(e) => write!(f, "{}", e),
             Self::Infix(e) => write!(f, "{}", e),
             Self::If(e) => write!(f, "{}", e),
@@ -185,6 +187,23 @@ impl Display for ArrayLiteral {
             .join(", ");
 
         write!(f, "[{}]", s)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HashLiteral {
+    pub pairs: Vec<(Expression, Expression)>,
+}
+
+impl Display for HashLiteral {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = self
+            .pairs
+            .iter()
+            .map(|(k, v)| format!("{}: {}", k.to_string(), v.to_string()))
+            .collect::<Vec<String>>()
+            .join(", ");
+        write!(f, "{{{}}}", s)
     }
 }
 

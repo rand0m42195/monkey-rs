@@ -197,6 +197,7 @@ fn eval_expression(
         ast::Expression::String(s) => eval_string_literal(s),
         ast::Expression::Bool(boolean) => eval_boolean(boolean),
         ast::Expression::Array(arr) => eval_array_literal(arr, env.clone()),
+        ast::Expression::Hash(hash) => eval_hash_literal(hash, env.clone()),
         ast::Expression::Prefix(prefix) => eval_prefix_expression(prefix, env.clone()),
         ast::Expression::Infix(infix) => eval_infix_expression(infix, env.clone()),
         ast::Expression::If(if_exp) => eval_if_expression(if_exp, env.clone()),
@@ -245,6 +246,20 @@ fn eval_array_literal(
     }
 
     Ok(object::Object::Array(objs))
+}
+
+fn eval_hash_literal(
+    hash: ast::HashLiteral,
+    env: Rc<RefCell<object::Environment>>,
+) -> Result<object::Object, MonkeyError> {
+    let mut map = vec![];
+    for (k, v) in hash.pairs {
+        let key = eval_expression(k, env.clone())?;
+        let val = eval_expression(v, env.clone())?;
+        map.push((key, val));
+    }
+
+    Ok(object::Object::Hash(map))
 }
 
 fn eval_prefix_expression(
@@ -373,16 +388,23 @@ fn eval_index_expression(
     ie: ast::IndexExpression,
     env: Rc<RefCell<object::Environment>>,
 ) -> Result<object::Object, MonkeyError> {
-    let arr = match eval_expression(*ie.left, env.clone())? {
-        object::Object::Array(a) => a,
+    match eval_expression(*ie.left, env.clone())? {
+        object::Object::Array(arr) => array_index(arr, *ie.index, env),
+        object::Object::Hash(pairs) => hash_index(pairs, *ie.index, env),
         obj => {
             return Err(MonkeyError::RuntimeError {
                 message: format!("expected Array object, got {}", obj.type_of()),
             });
         }
-    };
+    }
+}
 
-    let index = match eval_expression(*ie.index, env.clone())? {
+fn array_index(
+    objs: Vec<object::Object>,
+    index_exp: ast::Expression,
+    env: Rc<RefCell<object::Environment>>,
+) -> Result<object::Object, MonkeyError> {
+    let index = match eval_expression(index_exp, env.clone())? {
         object::Object::Integer(i) => i as usize,
         obj => {
             return Err(MonkeyError::RuntimeError {
@@ -394,13 +416,45 @@ fn eval_index_expression(
         }
     };
 
-    if arr.len() <= index {
+    if objs.len() <= index {
         Err(MonkeyError::RuntimeError {
-            message: format!("Outbound, Array len is {}, index is {}", arr.len(), index),
+            message: format!("Outbound, Array len is {}, index is {}", objs.len(), index),
         })
     } else {
-        Ok(arr[index].clone())
+        Ok(objs[index].clone())
     }
+}
+
+fn hash_index(
+    hash: Vec<(object::Object, object::Object)>,
+    index_exp: ast::Expression,
+    env: Rc<RefCell<object::Environment>>,
+) -> Result<object::Object, MonkeyError> {
+    let index = eval_expression(index_exp, env.clone())?;
+
+    for (k, v) in &hash {
+        match (k, &index) {
+            (object::Object::Integer(l), object::Object::Integer(r)) => {
+                if l == r {
+                    return Ok(v.clone());
+                }
+            }
+            (object::Object::String(l), object::Object::String(r)) => {
+                if l == r {
+                    return Ok(v.clone());
+                }
+            }
+            (object::Object::Boolean(l), object::Object::Boolean(r)) => {
+                if l == r {
+                    return Ok(v.clone());
+                }
+            }
+
+            _ => continue,
+        }
+    }
+
+    Ok(object::Object::Null)
 }
 
 fn apply_function(
@@ -459,7 +513,7 @@ fn eval_minus_operator_expression(obj: object::Object) -> Result<object::Object,
 
 #[cfg(test)]
 mod tests {
-    use crate::{lexer, parser};
+    use crate::{lexer, object::Object, parser};
 
     use super::*;
 
@@ -478,7 +532,7 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            let obj = test_eval_helper(input);
+            let obj = test_eval_helper(input).unwrap();
             test_integer_object(obj, expected);
         }
     }
@@ -488,7 +542,7 @@ mod tests {
         let tests = vec![(r#""hello""#, "hello")];
 
         for (input, expected) in tests {
-            let obj = test_eval_helper(input);
+            let obj = test_eval_helper(input).unwrap();
             test_string_object(obj, expected);
         }
     }
@@ -497,7 +551,7 @@ mod tests {
     fn test_string_concatenation() {
         let input = r#""Hello" + " " + "World!""#;
         let expected = "Hello World!";
-        let obj = test_eval_helper(input);
+        let obj = test_eval_helper(input).unwrap();
         test_string_object(obj, expected);
     }
 
@@ -509,7 +563,7 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            let obj = test_eval_helper(input);
+            let obj = test_eval_helper(input).unwrap();
             test_boolean_object(obj, expected);
         }
     }
@@ -542,7 +596,7 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            let obj = test_eval_helper(input);
+            let obj = test_eval_helper(input).unwrap();
             test_boolean_object(obj, expected);
         }
     }
@@ -560,7 +614,7 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            let obj = test_eval_helper(input);
+            let obj = test_eval_helper(input).unwrap();
             test_boolean_object(obj, expected);
         }
     }
@@ -579,7 +633,7 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            assert_eq!(test_eval_helper(input), expected);
+            test_object(test_eval_helper(input).unwrap(), expected);
         }
     }
 
@@ -597,7 +651,7 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            assert_eq!(test_eval_helper(input), expected);
+            test_object(test_eval_helper(input).unwrap(), expected);
         }
     }
 
@@ -614,7 +668,7 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            assert_eq!(test_eval_helper(input), expected);
+            test_object(test_eval_helper(input).unwrap(), expected);
         }
     }
 
@@ -622,7 +676,7 @@ mod tests {
     fn test_function_literal() {
         let input = "fn(a, b) { a + b; }";
 
-        let obj = test_eval_helper(input);
+        let obj = test_eval_helper(input).unwrap();
 
         match obj {
             object::Object::Function(params, block, _) => {
@@ -675,7 +729,7 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            assert_eq!(test_eval_helper(input), expected);
+            test_object(test_eval_helper(input).unwrap(), expected);
         }
     }
 
@@ -749,13 +803,7 @@ mod tests {
             // append
         ];
         for (input, expected) in tests {
-            let lexer = lexer::Lexer::new(input);
-            let mut parser = parser::Parser::new(lexer);
-            let program = parser.parse_program().unwrap();
-
-            let env = Rc::new(RefCell::new(object::Environment::new(None)));
-
-            assert_eq!(eval(program, env), expected);
+            test_eval_result(test_eval_helper(input), expected);
         }
     }
 
@@ -763,14 +811,14 @@ mod tests {
     fn test_array_literal() {
         let input1 = "[1, 2 + 2, 3 * 3]";
         let input2 = "[1, 4, 9]";
-        let obj1 = test_eval_helper(input1);
-        let obj2 = test_eval_helper(input2);
+        let obj1 = test_eval_helper(input1).unwrap();
+        let obj2 = test_eval_helper(input2).unwrap();
 
-        assert_eq!(obj1, obj2);
+        test_object(obj1, obj2);
     }
 
     #[test]
-    fn test_index() {
+    fn test_array_index() {
         let tests1 = vec![
             ("[1, 2, 3][0]", 1),
             ("[1, 2, 3][1]", 2),
@@ -786,7 +834,7 @@ mod tests {
         ];
 
         for (input, expected) in tests1 {
-            let obj = test_eval_helper(input);
+            let obj = test_eval_helper(input).unwrap();
             test_integer_object(obj, expected);
         }
 
@@ -800,19 +848,84 @@ mod tests {
         ];
 
         for (input, expected) in tests2 {
-            let obj = test_eval_helper(input);
+            let obj = test_eval_helper(input).unwrap();
             test_string_object(obj, expected);
         }
     }
 
-    fn test_eval_helper(input: &str) -> object::Object {
+    #[test]
+    fn test_hash_literal() {
+        let tests = vec![
+            ("{}", "{}"),
+            (r#"{"one": 1, "two": 2}"#, r#"{one: 1, two: 2}"#),
+        ];
+
+        for (input, expected) in tests {
+            let obj = test_eval_helper(input).unwrap();
+            assert_eq!(obj.to_string(), expected);
+        }
+    }
+
+    #[test]
+    fn test_hash_index() {
+        let tests = vec![
+            ("{}[0]", object::Object::Null),
+            (r#"{"one": 1, "二": 2}["one"]"#, object::Object::Integer(1)),
+            (r#"{"one": 1, "二": 2}["二"]"#, object::Object::Integer(2)),
+            (r#"{"one": 1, "二": 2}[0]"#, object::Object::Null),
+        ];
+
+        for (input, expected) in tests {
+            let got = test_eval_helper(input).unwrap();
+            test_object(got, expected);
+        }
+    }
+
+    fn test_eval_helper(input: &str) -> Result<object::Object, MonkeyError> {
         let lexer = lexer::Lexer::new(input);
         let mut parser = parser::Parser::new(lexer);
         let program = parser.parse_program().unwrap();
 
         let env = Rc::new(RefCell::new(object::Environment::new(None)));
 
-        eval(program, env).unwrap()
+        eval(program, env)
+    }
+
+    fn test_eval_result(
+        got: Result<object::Object, MonkeyError>,
+        expected: Result<object::Object, MonkeyError>,
+    ) {
+        match (got, expected) {
+            (Ok(obj1), Ok(obj2)) => test_object(obj1, obj2),
+            (Err(err1), Err(err2)) => assert_eq!(err1, err2),
+            (got, expected) => panic!("expected: {:?}, got: {:?}", got, expected),
+        }
+    }
+
+    fn test_object(got: object::Object, expected: object::Object) {
+        match expected {
+            object::Object::Null => test_null_object(got),
+            object::Object::Integer(n) => test_integer_object(got, n),
+            object::Object::String(s) => test_string_object(got, s.as_str()),
+            object::Object::Boolean(b) => test_boolean_object(got, b),
+            object::Object::Array(arr) => test_array_object(got, arr),
+            _ => todo!(),
+        }
+    }
+
+    fn test_null_object(obj: object::Object) {
+        if let object::Object::Null = obj {
+        } else {
+            panic!("expected Integer object!");
+        }
+    }
+
+    fn test_boolean_object(obj: object::Object, expected: bool) {
+        if let object::Object::Boolean(n) = obj {
+            assert_eq!(n, expected);
+        } else {
+            panic!("expected Boolean object!");
+        }
     }
 
     fn test_integer_object(obj: object::Object, expected: i64) {
@@ -831,11 +944,16 @@ mod tests {
         }
     }
 
-    fn test_boolean_object(obj: object::Object, expected: bool) {
-        if let object::Object::Boolean(n) = obj {
-            assert_eq!(n, expected);
+    fn test_array_object(got: object::Object, expected: Vec<Object>) {
+        if let object::Object::Array(arr) = got {
+            if arr.len() != expected.len() {
+                panic!("expected {} element(s) got {}", expected.len(), arr.len())
+            }
+            for i in 0..expected.len() {
+                test_object(arr[i].clone(), expected[i].clone());
+            }
         } else {
-            panic!("expected Boolean object!");
+            panic!("expected Array object")
         }
     }
 }

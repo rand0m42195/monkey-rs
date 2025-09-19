@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
+
 use std::rc::Rc;
 
 use crate::ast;
@@ -8,13 +9,14 @@ use crate::errors::MonkeyError;
 
 pub type BuiltinFunc = fn(args: &mut [Object]) -> Result<Object, MonkeyError>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Object {
     Null,
     Integer(i64),
     String(String),
     Boolean(bool),
     Array(Vec<Object>),
+    Hash(Vec<(Object, Object)>),
     Return(Box<Object>),
     Function(
         Vec<ast::Identifier>,
@@ -39,6 +41,15 @@ impl Display for Object {
                     .join(", ");
                 write!(f, "[{}]", s)
             }
+            Self::Hash(h) => {
+                let s = h
+                    .iter()
+                    .map(|(k, v)| format!("{}: {}", k, v))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+
+                write!(f, "{{{}}}", s)
+            }
             Self::Return(r) => write!(f, "{}", r),
             Self::Function(params, block, _env) => {
                 let params = params
@@ -61,6 +72,7 @@ pub enum ObjectType {
     String,
     Boolean,
     Array,
+    Hash,
     Return,
     Function,
     BuiltinFunction,
@@ -74,6 +86,7 @@ impl Object {
             Self::String(_) => ObjectType::String,
             Self::Boolean(_) => ObjectType::Boolean,
             Self::Array(_) => ObjectType::Array,
+            Self::Hash(_) => ObjectType::Hash,
             Self::Return(_) => ObjectType::Return,
             Self::Function(_, _, _) => ObjectType::Function,
             Self::BuiltinFunction(_) => ObjectType::BuiltinFunction,
@@ -93,6 +106,7 @@ impl Display for ObjectType {
             Self::String => write!(f, "String"),
             Self::Boolean => write!(f, "Boolean"),
             Self::Array => write!(f, "Array"),
+            Self::Hash => write!(f, "Hash"),
             Self::Return => write!(f, "Return"),
             Self::Function => write!(f, "Function"),
             Self::BuiltinFunction => write!(f, "BuiltinFunction"),
@@ -100,7 +114,7 @@ impl Display for ObjectType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Environment {
     store: HashMap<ast::Identifier, Object>,
     outer: Option<Box<Environment>>,

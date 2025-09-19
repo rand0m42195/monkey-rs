@@ -61,6 +61,7 @@ impl Parser {
         parser.register_prefix_fn(token::TokenType::IF, Self::parse_if_expression);
         parser.register_prefix_fn(token::TokenType::FUNCTION, Self::parse_function_literal);
         parser.register_prefix_fn(token::TokenType::LBRACKET, Self::parse_array);
+        parser.register_prefix_fn(token::TokenType::LBRACE, Self::parse_hash);
 
         parser.register_infix_fn(token::TokenType::PLUS, Self::parse_infix_expression);
         parser.register_infix_fn(token::TokenType::MINUS, Self::parse_infix_expression);
@@ -226,6 +227,36 @@ impl Parser {
     fn parse_array(&mut self) -> Result<ast::Expression, MonkeyError> {
         let exps = self.parse_expressions(token::TokenType::RBRACKET)?;
         Ok(ast::Expression::Array(ast::ArrayLiteral { elems: exps }))
+    }
+
+    fn parse_hash(&mut self) -> Result<ast::Expression, MonkeyError> {
+        if self.peek_token_is(token::TokenType::RBRACE) {
+            self.next_token();
+            return Ok(ast::Expression::Hash(ast::HashLiteral { pairs: vec![] }));
+        }
+        self.next_token(); // skip '{'
+
+        let mut pairs = vec![];
+
+        let key = self.parse_expression(Precedence::Lowest)?;
+        self.expect_peek(token::TokenType::COLON)?;
+        self.next_token();
+        let val = self.parse_expression(Precedence::Lowest)?;
+        pairs.push((key, val));
+
+        while self.peek_token_is(token::TokenType::COMMA) {
+            self.next_token(); // drive cur_token to ','
+            self.next_token(); // skip ','
+            let key = self.parse_expression(Precedence::Lowest)?;
+            self.expect_peek(token::TokenType::COLON)?;
+            self.next_token();
+            let val = self.parse_expression(Precedence::Lowest)?;
+            pairs.push((key, val));
+        }
+
+        self.expect_peek(token::TokenType::RBRACE)?;
+
+        Ok(ast::Expression::Hash(ast::HashLiteral { pairs: pairs }))
     }
 
     fn parse_boolean(&mut self) -> Result<ast::Expression, MonkeyError> {
@@ -870,6 +901,19 @@ mod tests {
         let program = parse_program(input);
 
         assert_eq!(program, expected);
+    }
+
+    #[test]
+    fn test_hash_literal() {
+        let tests = vec![
+            ("{}", "{}"),
+            (r#"{"one": 1, "two": 2}"#, r#"{one: 1, two: 2}"#),
+        ];
+
+        for (input, expected) in tests {
+            let program = parse_program(input);
+            assert_eq!(program.to_string(), expected);
+        }
     }
 
     fn test_let_statement(stmt: &ast::LetStatement, name: &str, value: &str) {
